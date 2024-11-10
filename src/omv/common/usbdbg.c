@@ -227,7 +227,11 @@ void usbdbg_data_in(uint32_t size, usbdbg_write_callback_t write_callback) {
         }
 
         case USBDBG_GET_STATE: {
-            uint32_t buffer[16] = { 0 };
+            // IDE will request 63/511 bytes of data to avoid ZLP packets.
+            // 64/512 packets still work too but generate ZLP packets.
+            uint8_t byte_buffer[size];
+            memset(byte_buffer, 0, size);
+            uint32_t *buffer = (uint32_t *) byte_buffer;
             static uint32_t last_update_ms = 0;
 
             // Set script running flag
@@ -263,13 +267,13 @@ void usbdbg_data_in(uint32_t size, usbdbg_write_callback_t write_callback) {
             // The rest of this packet is packed with text buffer.
             if (tx_buf_len) {
                 const uint32_t hdr = 16;
-                tx_buf_len = OMV_MIN(tx_buf_len, (64 - hdr - 1));
-                usb_cdc_get_buf((uint8_t *) buffer + hdr, tx_buf_len);
-                ((uint8_t *) buffer)[hdr + tx_buf_len] = 0; // Null-terminate
+                tx_buf_len = OMV_MIN(tx_buf_len, (size - hdr - 1));
+                usb_cdc_get_buf(byte_buffer + hdr, tx_buf_len);
+                byte_buffer[hdr + tx_buf_len] = 0; // Null-terminate
             }
 
             cmd = USBDBG_NONE;
-            write_callback(&buffer, sizeof(buffer));
+            write_callback(&byte_buffer, sizeof(byte_buffer));
             break;
         }
 
