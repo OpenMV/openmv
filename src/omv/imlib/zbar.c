@@ -8736,7 +8736,7 @@ void imlib_find_barcodes(list_t *out, image_t *ptr, rectangle_t *roi)
         imlib_draw_image(&img, ptr, 0, 0, 1.f, 1.f, roi, -1, 255, NULL, NULL, 0, NULL, NULL, NULL);
     }
 
-    umm_init_x(fb_avail());
+    umm_init_x(fb_avail(FB_ALLOC_NO_HINT));
 
     zbar_image_scanner_t *scanner = zbar_image_scanner_create();
     zbar_image_scanner_set_config(scanner, 0, ZBAR_CFG_ENABLE, 1);

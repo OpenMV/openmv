@@ -11951,7 +11951,7 @@ void imlib_find_apriltags(list_t *out, image_t *ptr, rectangle_t *roi, apriltag_
     // -> UnionFind = w*h*2 (+w*h*1 for hash table)
     size_t resolution = roi->w * roi->h;
     size_t fb_alloc_need = resolution * (1 + 1 + 2 + 1); // read above...
-    umm_init_x(((fb_avail() - fb_alloc_need) / resolution) * resolution);
+    umm_init_x(((fb_avail(FB_ALLOC_NO_HINT) - fb_alloc_need) / resolution) * resolution);
     apriltag_detector_t *td = apriltag_detector_create();
 
     #ifdef IMLIB_ENABLE_APRILTAGS_TAG16H5
@@ -12103,7 +12103,7 @@ void imlib_find_rects(list_t *out, image_t *ptr, rectangle_t *roi, uint32_t thre
     // -> UnionFind = w*h*2 (+w*h*1 for hash table)
     size_t resolution = roi->w * roi->h;
     size_t fb_alloc_need = resolution * (1 + 1 + 2 + 2); // read above...
-    umm_init_x(((fb_avail() - fb_alloc_need) / resolution) * resolution);
+    umm_init_x(((fb_avail(FB_ALLOC_NO_HINT) - fb_alloc_need) / resolution) * resolution);
     apriltag_detector_t *td = apriltag_detector_create();
 
     image_t img;
@@ -12302,7 +12302,7 @@ void imlib_rotation_corr(image_t *img, float x_rotation, float y_rotation, float
     memcpy(data, img->data, size);
     memset(img->data, 0, size);
 
-    umm_init_x(fb_avail());
+    umm_init_x(fb_avail(FB_ALLOC_NO_HINT));
 
     int w = img->w;
     int h = img->h;

@@ -33,7 +33,7 @@
 char *fb_alloc_stack_pointer();
 void fb_alloc_fail();
 void fb_alloc_init0();
-uint32_t fb_avail();
+uint32_t fb_avail(int hints);
 void fb_alloc_mark();
 void fb_alloc_free_till_mark();
 void fb_alloc_mark_permanent(); // tag memory that should not be popped on exception

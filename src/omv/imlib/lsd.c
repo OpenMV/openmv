@@ -2701,7 +2701,7 @@ void imlib_lsd_find_line_segments(list_t *out,
     img.data = grayscale_image;
     imlib_draw_image(&img, ptr, 0, 0, 1.f, 1.f, roi, -1, 255, NULL, NULL, 0, NULL, NULL, NULL);
 
-    umm_init_x(fb_avail());
+    umm_init_x(fb_avail(FB_ALLOC_NO_HINT));
 
     int n_ls;
     float *ls = LineSegmentDetection(&n_ls,

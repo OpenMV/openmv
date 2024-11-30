@@ -63,8 +63,17 @@ void fb_alloc_init0() {
     #endif
 }
 
-uint32_t fb_avail() {
-    uint32_t temp = pointer - framebuffer_get_buffers_end() - sizeof(uint32_t);
+uint32_t fb_avail(int hints) {
+    int32_t temp = pointer - framebuffer_get_buffers_end() - sizeof(uint32_t);
+    #if defined(OMV_FB_OVERLAY_MEMORY)
+    if (hints & FB_ALLOC_PREFER_SPEED) {
+        temp = pointer_overlay - &_fballoc_overlay_start - sizeof(uint32_t);
+    }
+    #endif
+    if (hints & FB_ALLOC_CACHE_ALIGN) {
+        temp -= OMV_ALLOC_ALIGNMENT - sizeof(uint32_t);
+        temp = (temp / OMV_ALLOC_ALIGNMENT) * OMV_ALLOC_ALIGNMENT;
+    }
     return (temp < sizeof(uint32_t)) ? 0 : temp;
 }
 
