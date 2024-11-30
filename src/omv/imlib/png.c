@@ -126,7 +126,7 @@ bool png_compress(image_t *src, image_t *dst) {
         return true;
     }
 
-    umm_init_x(fb_avail());
+    umm_init_x(fb_avail(FB_ALLOC_NO_HINT));
 
     LodePNGState state;
     lodepng_state_init(&state);
@@ -200,7 +200,7 @@ bool png_compress(image_t *src, image_t *dst) {
 #if defined(IMLIB_ENABLE_PNG_DECODER)
 void png_decompress(image_t *dst, image_t *src) {
     OMV_PROFILE_START();
-    umm_init_x(fb_avail());
+    umm_init_x(fb_avail(FB_ALLOC_NO_HINT));
 
     LodePNGState state;
     lodepng_state_init(&state);

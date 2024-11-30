@@ -181,7 +181,7 @@ bool jpeg_compress(image_t *src, image_t *dst, int quality, bool realloc, jpeg_s
     // If dst->data == NULL then we need to fb_alloc() space for the payload which will be fb_free()'d
     // by the caller. We have to alloc this memory for all cases if we return from the method.
     if (!dst->data) {
-        uint32_t avail = fb_avail();
+        uint32_t avail = fb_avail(FB_ALLOC_NO_HINT);
         uint32_t space = src_w_mcus_bytes_2 + JPEG_ALLOC_PADDING;
 
         if (avail < space) {
