@@ -63,8 +63,15 @@ void fb_alloc_init0() {
     #endif
 }
 
-uint32_t fb_avail() {
-    uint32_t temp = pointer - framebuffer_get_buffers_end() - sizeof(uint32_t);
+uint32_t fb_avail(bool fast) {
+    int32_t temp = pointer - framebuffer_get_buffers_end() - sizeof(uint32_t);
+    #if defined(OMV_FB_OVERLAY_MEMORY)
+    if (fast) {
+        temp = pointer_overlay - &_fballoc_overlay_start - sizeof(uint32_t);
+    }
+    #endif
+    temp -= OMV_ALLOC_ALIGNMENT - sizeof(uint32_t);
+    temp = (temp / OMV_ALLOC_ALIGNMENT) * OMV_ALLOC_ALIGNMENT;
     return (temp < sizeof(uint32_t)) ? 0 : temp;
 }
 
@@ -134,17 +141,13 @@ void fb_alloc_free_till_mark_past_mark_permanent() {
 }
 
 // returns null pointer without error if size==0
-void *fb_alloc(uint32_t size, int hints) {
+void *fb_alloc(uint32_t size) {
     if (!size) {
         return NULL;
     }
 
-    size = ((size + sizeof(uint32_t) - 1) / sizeof(uint32_t)) * sizeof(uint32_t); // Round Up
-
-    if (hints & FB_ALLOC_CACHE_ALIGN) {
-        size = ((size + OMV_ALLOC_ALIGNMENT - 1) / OMV_ALLOC_ALIGNMENT) * OMV_ALLOC_ALIGNMENT;
-        size += OMV_ALLOC_ALIGNMENT - sizeof(uint32_t);
-    }
+    size = ((size + OMV_ALLOC_ALIGNMENT - 1) / OMV_ALLOC_ALIGNMENT) * OMV_ALLOC_ALIGNMENT;
+    size += OMV_ALLOC_ALIGNMENT - sizeof(uint32_t);
 
     char *result = pointer - size;
     char *new_pointer = result - sizeof(uint32_t);
@@ -167,8 +170,7 @@ void *fb_alloc(uint32_t size, int hints) {
     #endif
 
     #if defined(OMV_FB_OVERLAY_MEMORY)
-    if ((!(hints & FB_ALLOC_PREFER_SIZE))
-        && (((uint32_t) (pointer_overlay - &_fballoc_overlay_start)) >= size)) {
+    if (((uint32_t) (pointer_overlay - &_fballoc_overlay_start)) >= size) {
         // Return overlay memory instead.
         pointer_overlay -= size;
         result = pointer_overlay;
@@ -176,24 +178,22 @@ void *fb_alloc(uint32_t size, int hints) {
     }
     #endif
 
-    if (hints & FB_ALLOC_CACHE_ALIGN) {
-        int offset = ((uint32_t) result) % OMV_ALLOC_ALIGNMENT;
-        if (offset) {
-            result += OMV_ALLOC_ALIGNMENT - offset;
-        }
+    int offset = ((uint32_t) result) % OMV_ALLOC_ALIGNMENT;
+    if (offset) {
+        result += OMV_ALLOC_ALIGNMENT - offset;
     }
 
     return result;
 }
 
 // returns null pointer without error if passed size==0
-void *fb_alloc0(uint32_t size, int hints) {
-    void *mem = fb_alloc(size, hints);
+void *fb_alloc0(uint32_t size) {
+    void *mem = fb_alloc(size);
     memset(mem, 0, size); // does nothing if size is zero.
     return mem;
 }
 
-void *fb_alloc_all(uint32_t *size, int hints) {
+void *fb_alloc_all(uint32_t *size, bool fast) {
     uint32_t temp = pointer - framebuffer_get_buffers_end() - sizeof(uint32_t);
 
     if (temp < sizeof(uint32_t)) {
@@ -202,7 +202,7 @@ void *fb_alloc_all(uint32_t *size, int hints) {
     }
 
     #if defined(OMV_FB_OVERLAY_MEMORY)
-    if (!(hints & FB_ALLOC_PREFER_SIZE)) {
+    if (fast) {
         *size = (uint32_t) (pointer_overlay - &_fballoc_overlay_start);
         temp = IM_MIN(temp, *size);
     }
@@ -226,7 +226,7 @@ void *fb_alloc_all(uint32_t *size, int hints) {
     #endif
 
     #if defined(OMV_FB_OVERLAY_MEMORY)
-    if (!(hints & FB_ALLOC_PREFER_SIZE)) {
+    if (fast) {
         // Return overlay memory instead.
         pointer_overlay -= *size;
         result = pointer_overlay;
@@ -234,23 +234,21 @@ void *fb_alloc_all(uint32_t *size, int hints) {
     }
     #endif
 
-    if (hints & FB_ALLOC_CACHE_ALIGN) {
-        int offset = ((uint32_t) result) % OMV_ALLOC_ALIGNMENT;
-        if (offset) {
-            int inc = OMV_ALLOC_ALIGNMENT - offset;
-            result += inc;
-            *size -= inc;
-        }
-
-        *size = (*size / OMV_ALLOC_ALIGNMENT) * OMV_ALLOC_ALIGNMENT;
+    int offset = ((uint32_t) result) % OMV_ALLOC_ALIGNMENT;
+    if (offset) {
+        int inc = OMV_ALLOC_ALIGNMENT - offset;
+        result += inc;
+        *size -= inc;
     }
+
+    *size = (*size / OMV_ALLOC_ALIGNMENT) * OMV_ALLOC_ALIGNMENT;
 
     return result;
 }
 
 // returns null pointer without error if returned size==0
-void *fb_alloc0_all(uint32_t *size, int hints) {
-    void *mem = fb_alloc_all(size, hints);
+void *fb_alloc0_all(uint32_t *size, bool fast) {
+    void *mem = fb_alloc_all(size, fast);
     memset(mem, 0, *size); // does nothing if size is zero.
     return mem;
 }

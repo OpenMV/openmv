@@ -458,7 +458,7 @@ static void spi_config_init(bool triple_buffer) {
         framebuffer_tail = 0;
 
         for (int i = 0; i < FRAMEBUFFER_COUNT; i++) {
-            framebuffers[i] = (uint16_t *) fb_alloc0(TV_WIDTH_RGB565 * TV_HEIGHT, FB_ALLOC_CACHE_ALIGN);
+            framebuffers[i] = (uint16_t *) fb_alloc0(TV_WIDTH_RGB565 * TV_HEIGHT);
         }
 
         fb_alloc_mark_permanent();
@@ -616,7 +616,7 @@ static void spi_tv_display(image_t *src_img, int dst_x_start, int dst_y_start, f
     bool black = p0.x == -1;
 
     if (!tv_triple_buffer) {
-        dst_img.data = fb_alloc0(TV_WIDTH_RGB565, FB_ALLOC_NO_HINT);
+        dst_img.data = fb_alloc0(TV_WIDTH_RGB565);
 
         SpiTransmitReceivePacket((uint8_t *) write_sram, NULL, sizeof(write_sram), false);
 

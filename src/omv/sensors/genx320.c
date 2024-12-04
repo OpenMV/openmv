@@ -328,7 +328,7 @@ static void snapshot_post_process(image_t *image) {
         image->data[i] = __USAT((((int8_t *) image->data)[i] * contrast) + brightness, UINT8_T_BITS);
     }
     #else
-    uint8_t *out = fb_alloc(ACTIVE_SENSOR_SIZE, FB_ALLOC_NO_HINT);
+    uint8_t *out = fb_alloc(ACTIVE_SENSOR_SIZE);
     memset(out, brightness, ACTIVE_SENSOR_SIZE);
 
     for (uint32_t i = 0; i < (ACTIVE_SENSOR_SIZE / sizeof(uint32_t)); i++) {
@@ -372,7 +372,7 @@ static void snapshot_post_process(image_t *image) {
 static int snapshot(omv_csi_t *csi, image_t *image, uint32_t flags) {
     #if (OMV_GENX320_CAL_ENABLE == 1)
     if (!hot_pixels_disabled) {
-        uint8_t *histogram = fb_alloc0(ACTIVE_SENSOR_SIZE, FB_ALLOC_NO_HINT);
+        uint8_t *histogram = fb_alloc0(ACTIVE_SENSOR_SIZE);
 
         // Collect events to calibrate hot pixels.
         for (uint32_t i = 0; i < EVENT_THRESHOLD_TO_CALIBRATE; ) {

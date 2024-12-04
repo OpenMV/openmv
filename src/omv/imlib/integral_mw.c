@@ -81,13 +81,13 @@ void imlib_integral_mw_alloc(mw_image_t *sum, int w, int h) {
     sum->y_offs = 0;
     sum->x_ratio = (1 << 16) + 1;
     sum->y_ratio = (1 << 16) + 1;
-    sum->data = fb_alloc(h * sizeof(*sum->data), FB_ALLOC_NO_HINT);
+    sum->data = fb_alloc(h * sizeof(*sum->data));
     // swap is used when shifting the image pointers
     // to avoid overwriting the image rows in sum->data
-    sum->swap = fb_alloc(h * sizeof(*sum->data), FB_ALLOC_NO_HINT);
+    sum->swap = fb_alloc(h * sizeof(*sum->data));
 
     for (int i = 0; i < h; i++) {
-        sum->data[i] = fb_alloc(w * sizeof(**sum->data), FB_ALLOC_NO_HINT);
+        sum->data[i] = fb_alloc(w * sizeof(**sum->data));
     }
 }
 

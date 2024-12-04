@@ -353,7 +353,7 @@ static void ltdc_init(py_display_obj_t *self) {
 
     fb_alloc_mark();
     for (int i = 0; i < FRAMEBUFFER_COUNT; i++) {
-        self->framebuffers[i] = (uint16_t *) fb_alloc0(fb_size, FB_ALLOC_CACHE_ALIGN);
+        self->framebuffers[i] = (uint16_t *) fb_alloc0(fb_size);
         display.framebuffer_layers[i].WindowX0 = 0;
         display.framebuffer_layers[i].WindowX1 = dm.hactive;
         display.framebuffer_layers[i].WindowY0 = 0;

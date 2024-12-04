@@ -202,9 +202,9 @@ int aiRun(stnn_t *net, image_t *img, rectangle_t *roi) {
 
   fb_alloc_mark();
   AI_ALIGNED(4)
-  ai_u8 *activations = fb_alloc(AI_NETWORK_DATA_ACTIVATIONS_SIZE, FB_ALLOC_NO_HINT);
+  ai_u8 *activations = fb_alloc(AI_NETWORK_DATA_ACTIVATIONS_SIZE);
   AI_ALIGNED(4)
-  ai_u8 *in_data = fb_alloc(AI_NETWORK_IN_1_SIZE_BYTES, FB_ALLOC_NO_HINT);
+  ai_u8 *in_data = fb_alloc(AI_NETWORK_IN_1_SIZE_BYTES);
 
   // build params structure to provide the reference of the
   // activation and weight buffers

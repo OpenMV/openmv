@@ -51,7 +51,7 @@ void imlib_edge_simple(image_t *src, rectangle_t *roi, int low_thresh, int high_
 void imlib_edge_canny(image_t *src, rectangle_t *roi, int low_thresh, int high_thresh) {
     int w = src->w;
 
-    gvec_t *gm = fb_alloc0(roi->w * roi->h * sizeof *gm, FB_ALLOC_NO_HINT);
+    gvec_t *gm = fb_alloc0(roi->w * roi->h * sizeof *gm);
 
     //1. Noise Reduction with a Gaussian filter
     imlib_sepconv3(src, kernel_gauss_3, 1.0f / 16.0f, 0.0f);

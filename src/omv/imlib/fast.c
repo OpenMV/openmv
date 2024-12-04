@@ -115,7 +115,7 @@ static void nonmax_suppression(corner_t *corners, int num_corners, array_t *keyp
     /* Find where each row begins (the corners are output in raster scan order).
        A beginning of -1 signifies that there are no corners on that row. */
     last_row = corners[sz - 1].y;
-    row_start = fb_alloc((last_row + 1) * sizeof(uint16_t), FB_ALLOC_NO_HINT);
+    row_start = fb_alloc((last_row + 1) * sizeof(uint16_t));
 
     for (int i = 0; i < last_row + 1; i++) {
         row_start[i] = -1;
@@ -3152,8 +3152,8 @@ static corner_t *fast9_detect(image_t *image, rectangle_t *roi, int *n_corners, 
 {
     int num_corners = 0;
     // Try to alloc MAX_CORNERS or the actual max corners we can alloc.
-    int max_corners = IM_MIN(MAX_CORNERS, (fb_avail() / sizeof(corner_t)));
-    corner_t *corners = (corner_t*) fb_alloc(max_corners * sizeof(corner_t), FB_ALLOC_NO_HINT);
+    int max_corners = IM_MIN(MAX_CORNERS, (fb_avail(false) / sizeof(corner_t)));
+    corner_t *corners = (corner_t*) fb_alloc(max_corners * sizeof(corner_t));
 
     for(int y=roi->y+3; y<roi->y+roi->h-3; y++) {
         for(int x=roi->x+3; x<roi->x+roi->w-3; x++) {

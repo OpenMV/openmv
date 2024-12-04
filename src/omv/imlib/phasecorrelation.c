@@ -267,7 +267,7 @@ void imlib_logpolar(image_t *img, bool linear, bool reverse) {
     rect.h = img->h;
 
     size_t size = image_size(img);
-    img_2.data = fb_alloc(size, FB_ALLOC_NO_HINT);
+    img_2.data = fb_alloc(size);
     memcpy(img_2.data, img->data, size);
     memset(img->data, 0, size);
 
@@ -441,7 +441,7 @@ void imlib_phasecorrelate(image_t *img0,
         img0_fixed.w = roi0->w;
         img0_fixed.h = roi0->h;
         img0_fixed.pixfmt = img0->pixfmt;
-        img0_fixed.pixels = fb_alloc(image_size(&img0_fixed), FB_ALLOC_NO_HINT);
+        img0_fixed.pixels = fb_alloc(image_size(&img0_fixed));
 
         roi0_fixed.x = 0;
         roi0_fixed.y = 0;
@@ -497,7 +497,7 @@ void imlib_phasecorrelate(image_t *img0,
             img0alt.w = roi0_fixed.w;
             img0alt.h = roi0_fixed.h;
             img0alt.pixfmt = img0_fixed.pixfmt;
-            img0alt.data = fb_alloc0(image_size(&img0alt), FB_ALLOC_NO_HINT);
+            img0alt.data = fb_alloc0(image_size(&img0alt));
             imlib_logpolar_int(&img0alt, &img0_fixed, &roi0_fixed, false, false);
             roi0alt.x = 0;
             roi0alt.y = 0;
@@ -507,7 +507,7 @@ void imlib_phasecorrelate(image_t *img0,
             img1alt.w = roi1->w;
             img1alt.h = roi1->h;
             img1alt.pixfmt = img1->pixfmt;
-            img1alt.data = fb_alloc0(image_size(&img1alt), FB_ALLOC_NO_HINT);
+            img1alt.data = fb_alloc0(image_size(&img1alt));
             imlib_logpolar_int(&img1alt, img1, roi1, false, false);
             roi1alt.x = 0;
             roi1alt.y = 0;

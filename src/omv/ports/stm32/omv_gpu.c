@@ -112,7 +112,7 @@ int omv_gpu_draw_image(image_t *src_img,
     if (src_img->pixfmt == PIXFORMAT_GRAYSCALE) {
         dma2d.LayerCfg[1].InputColorMode = DMA2D_INPUT_L8;
         dma2d.LayerCfg[1].AlphaMode = DMA2D_COMBINE_ALPHA;
-        uint32_t *clut = fb_alloc(256 * sizeof(uint32_t), FB_ALLOC_CACHE_ALIGN);
+        uint32_t *clut = fb_alloc(256 * sizeof(uint32_t));
 
         if (!alpha_palette) {
             if (!color_palette) {
