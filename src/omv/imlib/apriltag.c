@@ -10599,7 +10599,7 @@ zarray_t *apriltag_quad_thresh(apriltag_detector_t *td, image_u8_t *im, bool ove
     }
 
     uint32_t nclustermap;
-    struct uint32_zarray_entry **clustermap = fb_alloc0_all(&nclustermap, FB_ALLOC_PREFER_SPEED);
+    struct uint32_zarray_entry **clustermap = fb_alloc0_all(&nclustermap, FB_ALLOC_FAST_HINT);
     nclustermap /= sizeof(struct uint32_zarray_entry*);
     if (!nclustermap) fb_alloc_fail();
 

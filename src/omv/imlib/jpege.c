@@ -935,7 +935,7 @@ bool jpeg_compress(image_t *src, image_t *dst, int quality, bool realloc, jpeg_s
 
     if (!dst->data) {
         uint32_t size = 0;
-        dst->data = fb_alloc_all(&size, FB_ALLOC_PREFER_SIZE);
+        dst->data = fb_alloc_all(&size, FB_ALLOC_NO_HINT);
         dst->size = IMLIB_IMAGE_MAX_SIZE(size);
     }
 

@@ -189,7 +189,7 @@ bool jpeg_compress(image_t *src, image_t *dst, int quality, bool realloc, jpeg_s
         }
 
         dst->size = IMLIB_IMAGE_MAX_SIZE(avail - space);
-        dst->data = fb_alloc(dst->size, FB_ALLOC_PREFER_SIZE);
+        dst->data = fb_alloc(dst->size, FB_ALLOC_NO_HINT);
     }
 
     if (src->is_compressed) {
@@ -222,7 +222,7 @@ bool jpeg_compress(image_t *src, image_t *dst, int quality, bool realloc, jpeg_s
     JPEG_state.input_paused = false;
     JPEG_state.output_paused = false;
 
-    uint8_t *mcu_row_buffer = fb_alloc(src_w_mcus_bytes_2, FB_ALLOC_PREFER_SPEED);
+    uint8_t *mcu_row_buffer = fb_alloc(src_w_mcus_bytes_2, FB_ALLOC_FAST_HINT);
 
     for (int y_offset = 0; y_offset < src->h; y_offset += JPEG_MCU_H) {
         uint8_t *mcu_row_buffer_ptr = mcu_row_buffer + (src_w_mcus_bytes * ((y_offset / JPEG_MCU_H) % 2));
@@ -545,7 +545,7 @@ void jpeg_decompress(image_t *dst, image_t *src) {
     JPEG_state.out_data_len = 0;
     JPEG_state.output_paused = false;
 
-    uint8_t *mcu_row_buffer = fb_alloc(dst_w_mcus_bytes_2, FB_ALLOC_PREFER_SPEED);
+    uint8_t *mcu_row_buffer = fb_alloc(dst_w_mcus_bytes_2, FB_ALLOC_FAST_HINT);
 
     #if defined(OMV_MDMA_CHANNEL_JPEG_IN)
     // Flush input.

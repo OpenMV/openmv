@@ -26,9 +26,8 @@
 #ifndef __FB_ALLOC_H__
 #define __FB_ALLOC_H__
 #include <stdint.h>
-#define FB_ALLOC_NO_HINT         0
-#define FB_ALLOC_PREFER_SPEED    1
-#define FB_ALLOC_PREFER_SIZE     2
+#define FB_ALLOC_NO_HINT        0
+#define FB_ALLOC_FAST_HINT      1
 char *fb_alloc_stack_pointer();
 void fb_alloc_fail();
 void fb_alloc_init0();

@@ -375,7 +375,7 @@ mp_obj_t py_tof_read_depth(uint n_args, const mp_obj_t *pos_args, mp_map_t *kw_a
         #if (OMV_TOF_VL53L5CX_ENABLE == 1)
         case TOF_VL53L5CX: {
             fb_alloc_mark();
-            float *frame = fb_alloc(VL53L5CX_WIDTH * VL53L5CX_HEIGHT * sizeof(float), FB_ALLOC_PREFER_SPEED);
+            float *frame = fb_alloc(VL53L5CX_WIDTH * VL53L5CX_HEIGHT * sizeof(float), FB_ALLOC_FAST_HINT);
             tof_vl53l5cx_get_depth(&vl53l5cx_dev, frame, args[ARG_timeout].u_int);
             mp_obj_t result = tof_get_depth_obj(VL53L5CX_WIDTH, VL53L5CX_HEIGHT, frame, !args[ARG_hmirror].u_bool,
                                                 args[ARG_vflip].u_bool, args[ARG_transpose].u_bool, true);
@@ -544,7 +544,7 @@ mp_obj_t py_tof_snapshot(uint n_args, const mp_obj_t *pos_args, mp_map_t *kw_arg
     switch (tof_sensor) {
         #if (OMV_TOF_VL53L5CX_ENABLE == 1)
         case TOF_VL53L5CX: {
-            float *frame = fb_alloc(VL53L5CX_WIDTH * VL53L5CX_HEIGHT * sizeof(float), FB_ALLOC_PREFER_SPEED);
+            float *frame = fb_alloc(VL53L5CX_WIDTH * VL53L5CX_HEIGHT * sizeof(float), FB_ALLOC_FAST_HINT);
             tof_vl53l5cx_get_depth(&vl53l5cx_dev, frame, args[ARG_timeout].u_int);
             if (args[ARG_scale].u_obj == mp_const_none) {
                 fast_get_min_max(frame, VL53L5CX_WIDTH * VL53L5CX_HEIGHT, &min, &max);

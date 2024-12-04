@@ -66,7 +66,7 @@ void fb_alloc_init0() {
 uint32_t fb_avail(int hints) {
     int32_t temp = pointer - framebuffer_get_buffers_end() - sizeof(uint32_t);
     #if defined(OMV_FB_OVERLAY_MEMORY)
-    if (hints & FB_ALLOC_PREFER_SPEED) {
+    if (hints & FB_ALLOC_FAST_HINT) {
         temp = pointer_overlay - &_fballoc_overlay_start - sizeof(uint32_t);
     }
     #endif
@@ -170,8 +170,7 @@ void *fb_alloc(uint32_t size, int hints) {
     #endif
 
     #if defined(OMV_FB_OVERLAY_MEMORY)
-    if ((!(hints & FB_ALLOC_PREFER_SIZE))
-        && (((uint32_t) (pointer_overlay - &_fballoc_overlay_start)) >= size)) {
+    if (((uint32_t) (pointer_overlay - &_fballoc_overlay_start)) >= size) {
         // Return overlay memory instead.
         pointer_overlay -= size;
         result = pointer_overlay;
@@ -203,7 +202,7 @@ void *fb_alloc_all(uint32_t *size, int hints) {
     }
 
     #if defined(OMV_FB_OVERLAY_MEMORY)
-    if (!(hints & FB_ALLOC_PREFER_SIZE)) {
+    if (hints & FB_ALLOC_FAST_HINT) {
         *size = (uint32_t) (pointer_overlay - &_fballoc_overlay_start);
         temp = IM_MIN(temp, *size);
     }
@@ -227,7 +226,7 @@ void *fb_alloc_all(uint32_t *size, int hints) {
     #endif
 
     #if defined(OMV_FB_OVERLAY_MEMORY)
-    if (!(hints & FB_ALLOC_PREFER_SIZE)) {
+    if (hints & FB_ALLOC_FAST_HINT) {
         // Return overlay memory instead.
         pointer_overlay -= *size;
         result = pointer_overlay;

@@ -2379,7 +2379,7 @@ void imlib_debayer_image_awb(image_t *dst, image_t *src, bool fast, uint32_t r_o
                     .w = dst->w,
                     .h = VBAYER_BUF_BROWS,
                     .pixfmt = PIXFORMAT_GRAYSCALE,
-                    .data = fb_alloc(dst->w * VBAYER_BUF_BROWS * sizeof(uint8_t), FB_ALLOC_PREFER_SPEED),
+                    .data = fb_alloc(dst->w * VBAYER_BUF_BROWS * sizeof(uint8_t), FB_ALLOC_FAST_HINT),
                 };
 
                 switch (src->pixfmt) {
@@ -2419,7 +2419,7 @@ void imlib_debayer_image_awb(image_t *dst, image_t *src, bool fast, uint32_t r_o
                     .w = dst->w,
                     .h = VBAYER_BUF_BROWS,
                     .pixfmt = PIXFORMAT_RGB565,
-                    .data = fb_alloc(dst->w * VBAYER_BUF_BROWS * sizeof(uint16_t), FB_ALLOC_PREFER_SPEED),
+                    .data = fb_alloc(dst->w * VBAYER_BUF_BROWS * sizeof(uint16_t), FB_ALLOC_FAST_HINT),
                 };
 
                 switch (src->pixfmt) {
