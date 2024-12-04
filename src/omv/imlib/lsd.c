@@ -2692,7 +2692,7 @@ void imlib_lsd_find_line_segments(list_t *out,
                                   rectangle_t *roi,
                                   unsigned int merge_distance,
                                   unsigned int max_theta_diff) {
-    uint8_t *grayscale_image = fb_alloc(roi->w * roi->h, FB_ALLOC_NO_HINT);
+    uint8_t *grayscale_image = fb_alloc(roi->w * roi->h);
 
     image_t img;
     img.w = roi->w;

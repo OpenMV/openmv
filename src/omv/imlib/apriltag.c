@@ -9143,8 +9143,8 @@ struct ufrec
 
 static inline unionfind_t *unionfind_create(uint32_t maxid)
 {
-    unionfind_t *uf = (unionfind_t*) fb_alloc(sizeof(unionfind_t), FB_ALLOC_NO_HINT);
-    uf->data = (struct ufrec*) fb_alloc((maxid+1) * sizeof(struct ufrec), FB_ALLOC_NO_HINT);
+    unionfind_t *uf = (unionfind_t*) fb_alloc(sizeof(unionfind_t));
+    uf->data = (struct ufrec*) fb_alloc((maxid+1) * sizeof(struct ufrec));
     for (int i = 0; i <= maxid; i++) {
         uf->data[i].parent = i;
     }
@@ -9327,7 +9327,7 @@ static inline void ptsort(struct pt *pts, int sz)
 
     // a merge sort with temp storage.
 
-    struct pt *tmp = fb_alloc(sizeof(struct pt) * sz, FB_ALLOC_NO_HINT);
+    struct pt *tmp = fb_alloc(sizeof(struct pt) * sz);
 
     memcpy(tmp, pts, sizeof(struct pt) * sz);
 
@@ -9552,7 +9552,7 @@ int quad_segment_maxima(apriltag_detector_t *td, zarray_t *cluster, struct line_
 
 //    printf("sz %5d, ksz %3d\n", sz, ksz);
 
-    float *errs = fb_alloc(sz * sizeof(float), FB_ALLOC_NO_HINT);
+    float *errs = fb_alloc(sz * sizeof(float));
 
     for (int i = 0; i < sz; i++) {
         fit_line(lfps, sz, (i + sz - ksz) % sz, (i + ksz) % sz, NULL, &errs[i], NULL);
@@ -9560,7 +9560,7 @@ int quad_segment_maxima(apriltag_detector_t *td, zarray_t *cluster, struct line_
 
     // apply a low-pass filter to errs
     if (1) {
-        float *y = fb_alloc(sz * sizeof(float), FB_ALLOC_NO_HINT);
+        float *y = fb_alloc(sz * sizeof(float));
 
         // how much filter to apply?
 
@@ -9582,7 +9582,7 @@ int quad_segment_maxima(apriltag_detector_t *td, zarray_t *cluster, struct line_
 
         // For default values of cutoff = 0.05, sigma = 3,
         // we have fsz = 17.
-        float *f = fb_alloc(fsz * sizeof(float), FB_ALLOC_NO_HINT);
+        float *f = fb_alloc(fsz * sizeof(float));
 
         for (int i = 0; i < fsz; i++) {
             int j = i - fsz / 2;
@@ -9612,8 +9612,8 @@ int quad_segment_maxima(apriltag_detector_t *td, zarray_t *cluster, struct line_
         fb_free(); // y
     }
 
-    int *maxima = fb_alloc(sz * sizeof(int), FB_ALLOC_NO_HINT);
-    float *maxima_errs = fb_alloc(sz * sizeof(float), FB_ALLOC_NO_HINT);
+    int *maxima = fb_alloc(sz * sizeof(int));
+    float *maxima_errs = fb_alloc(sz * sizeof(float));
     int nmaxima = 0;
 
     for (int i = 0; i < sz; i++) {
@@ -9636,7 +9636,7 @@ int quad_segment_maxima(apriltag_detector_t *td, zarray_t *cluster, struct line_
     int max_nmaxima = td->qtp.max_nmaxima;
 
     if (nmaxima > max_nmaxima) {
-        float *maxima_errs_copy = fb_alloc(nmaxima * sizeof(float), FB_ALLOC_NO_HINT);
+        float *maxima_errs_copy = fb_alloc(nmaxima * sizeof(float));
         memcpy(maxima_errs_copy, maxima_errs, nmaxima * sizeof(float));
 
         // throw out all but the best handful of maxima. Sorts descending.
@@ -9873,7 +9873,7 @@ int fit_quad(apriltag_detector_t *td, image_u8_t *im, zarray_t *cluster, struct 
     // Step 2. Precompute statistics that allow line fit queries to be
     // efficiently computed for any contiguous range of indices.
 
-    struct line_fit_pt *lfps = fb_alloc0(sz * sizeof(struct line_fit_pt), FB_ALLOC_NO_HINT);
+    struct line_fit_pt *lfps = fb_alloc0(sz * sizeof(struct line_fit_pt));
 
     for (int i = 0; i < sz; i++) {
         struct pt *p;
@@ -10200,11 +10200,11 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
     assert(w < 32768);
     assert(h < 32768);
 
-    image_u8_t *threshim = fb_alloc(sizeof(image_u8_t), FB_ALLOC_NO_HINT);
+    image_u8_t *threshim = fb_alloc(sizeof(image_u8_t));
     threshim->width = w;
     threshim->height = h;
     threshim->stride = s;
-    threshim->buf = fb_alloc(w * h, FB_ALLOC_NO_HINT);
+    threshim->buf = fb_alloc(w * h);
     assert(threshim->stride == s);
 
     // The idea is to find the maximum and minimum values in a
@@ -10237,8 +10237,8 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
     int tw = w / tilesz;
     int th = h / tilesz;
 
-    uint8_t *im_max = fb_alloc(tw*th*sizeof(uint8_t), FB_ALLOC_NO_HINT);
-    uint8_t *im_min = fb_alloc(tw*th*sizeof(uint8_t), FB_ALLOC_NO_HINT);
+    uint8_t *im_max = fb_alloc(tw*th*sizeof(uint8_t));
+    uint8_t *im_min = fb_alloc(tw*th*sizeof(uint8_t));
 
     // first, collect min/max statistics for each tile
     for (int ty = 0; ty < th; ty++) {
@@ -10288,8 +10288,8 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
     // over larger areas. This reduces artifacts due to abrupt changes
     // in the threshold value.
     if (1) {
-        uint8_t *im_max_tmp = fb_alloc(tw*th*sizeof(uint8_t), FB_ALLOC_NO_HINT);
-        uint8_t *im_min_tmp = fb_alloc(tw*th*sizeof(uint8_t), FB_ALLOC_NO_HINT);
+        uint8_t *im_max_tmp = fb_alloc(tw*th*sizeof(uint8_t));
+        uint8_t *im_min_tmp = fb_alloc(tw*th*sizeof(uint8_t));
 
 #ifdef OPTIMIZED
         // Checking boundaries on every pixel wastes significant time; just break it into 5 pieces
@@ -10538,11 +10538,11 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
     // this is a dilate/erode deglitching scheme that does not improve
     // anything as far as I can tell.
     if (0 || td->qtp.deglitch) {
-        image_u8_t *tmp = fb_alloc(sizeof(image_u8_t), FB_ALLOC_NO_HINT);
+        image_u8_t *tmp = fb_alloc(sizeof(image_u8_t));
         tmp->width = w;
         tmp->height = h;
         tmp->stride = s;
-        tmp->buf = fb_alloc(w * h, FB_ALLOC_NO_HINT);
+        tmp->buf = fb_alloc(w * h);
 
         for (int y = 1; y + 1 < h; y++) {
             for (int x = 1; x + 1 < w; x++) {
@@ -11994,7 +11994,7 @@ void imlib_find_apriltags(list_t *out, image_t *ptr, rectangle_t *roi, apriltag_
     img.w = roi->w;
     img.h = roi->h;
     img.pixfmt = PIXFORMAT_GRAYSCALE;
-    img.data = fb_alloc(image_size(&img), FB_ALLOC_NO_HINT);
+    img.data = fb_alloc(image_size(&img));
     imlib_draw_image(&img, ptr, 0, 0, 1.f, 1.f, roi, -1, 255, NULL, NULL, 0, NULL, NULL, NULL);
 
     image_u8_t im;
@@ -12110,7 +12110,7 @@ void imlib_find_rects(list_t *out, image_t *ptr, rectangle_t *roi, uint32_t thre
     img.w = roi->w;
     img.h = roi->h;
     img.pixfmt = PIXFORMAT_GRAYSCALE;
-    img.data = fb_alloc(image_size(&img), FB_ALLOC_NO_HINT);
+    img.data = fb_alloc(image_size(&img));
     imlib_draw_image(&img, ptr, 0, 0, 1.f, 1.f, roi, -1, 255, NULL, NULL, 0, NULL, NULL, NULL);
 
     image_u8_t im;
@@ -12219,9 +12219,9 @@ void imlib_find_rects(list_t *out, image_t *ptr, rectangle_t *roi, uint32_t thre
     list_init(out, sizeof(find_rects_list_lnk_data_t));
 
     const int r_diag_len = fast_roundf(fast_sqrtf((roi->w * roi->w) + (roi->h * roi->h))) * 2;
-    int *theta_buffer = fb_alloc(sizeof(int) * r_diag_len, FB_ALLOC_NO_HINT);
-    uint32_t *mag_buffer = fb_alloc(sizeof(uint32_t) * r_diag_len, FB_ALLOC_NO_HINT);
-    point_t *point_buffer = fb_alloc(sizeof(point_t) * r_diag_len, FB_ALLOC_NO_HINT);
+    int *theta_buffer = fb_alloc(sizeof(int) * r_diag_len);
+    uint32_t *mag_buffer = fb_alloc(sizeof(uint32_t) * r_diag_len);
+    point_t *point_buffer = fb_alloc(sizeof(point_t) * r_diag_len);
 
     for (int i = 0, j = zarray_size(detections); i < j; i++) {
         struct quad *det;
@@ -12298,7 +12298,7 @@ void imlib_rotation_corr(image_t *img, float x_rotation, float y_rotation, float
 {
     // Create a tmp copy of the image to pull pixels from.
     size_t size = image_size(img);
-    void *data = fb_alloc(size, FB_ALLOC_NO_HINT);
+    void *data = fb_alloc(size);
     memcpy(data, img->data, size);
     memset(img->data, 0, size);
 

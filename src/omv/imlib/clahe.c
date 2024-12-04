@@ -108,7 +108,7 @@ int CLAHE(kz_pixel_t *pImage, unsigned int uiXRes, unsigned int uiYRes,
         uiNrBins = 128;                   /* default value when not specified */
 
     }
-    pulMapArray = (unsigned long *) fb_alloc(sizeof(unsigned long) * uiNrX * uiNrY * uiNrBins, FB_ALLOC_NO_HINT);
+    pulMapArray = (unsigned long *) fb_alloc(sizeof(unsigned long) * uiNrX * uiNrY * uiNrBins);
     if (pulMapArray == 0) {
         return -8;                        /* Not enough memory! (try reducing uiNrBins) */
 
@@ -354,7 +354,7 @@ void imlib_clahe_histeq(image_t *img, float clip_limit, image_t *mask) {
     temp.w = img->w;
     temp.h = img->h;
     temp.pixfmt = img->pixfmt;
-    temp.data = fb_alloc0(pImageW * pImageH * sizeof(kz_pixel_t), FB_ALLOC_NO_HINT);
+    temp.data = fb_alloc0(pImageW * pImageH * sizeof(kz_pixel_t));
 
     switch (img->pixfmt) {
         case PIXFORMAT_BINARY: {

@@ -72,8 +72,8 @@ static inline float maxf(float a, float b) {
 extern uint32_t rng_randint(uint32_t min, uint32_t max);
 
 static universe *universe_create(int elements) {
-    universe *uni = (universe *) fb_alloc(sizeof(universe), FB_ALLOC_NO_HINT);
-    uni->elts = (uni_elt *) fb_alloc(sizeof(uni_elt) * elements, FB_ALLOC_NO_HINT);
+    universe *uni = (universe *) fb_alloc(sizeof(universe));
+    uni->elts = (uni_elt *) fb_alloc(sizeof(uni_elt) * elements);
     uni->num = elements;
     for (int i = 0; i < elements; ++i) {
         uni->elts[i].p = i;
@@ -175,7 +175,7 @@ int comp(const void *elem1, const void *elem2) {
 static void segment_graph(universe *u, int num_vertices, int num_edges, edge *edges, float c) {
     qsort(edges, num_edges, sizeof(edge), comp);
 
-    float *threshold = fb_alloc(num_vertices * sizeof(float), FB_ALLOC_NO_HINT);
+    float *threshold = fb_alloc(num_vertices * sizeof(float));
     for (int i = 0; i < num_vertices; i++) {
         threshold[i] = THRESHOLD(1, c);
     }
@@ -226,10 +226,10 @@ array_t *imlib_selective_search(image_t *src, float t, int min_size, float a1, f
         // Down scale image
         width = src->w / 4;
         height = src->h / 4;
-        img = fb_alloc(sizeof(image_t), FB_ALLOC_NO_HINT);
+        img = fb_alloc(sizeof(image_t));
         img->w = width;
         img->h = height;
-        img->pixels = fb_alloc(width * height * 2, FB_ALLOC_NO_HINT);
+        img->pixels = fb_alloc(width * height * 2);
         image_scale(src, img);
     }
 
@@ -238,7 +238,7 @@ array_t *imlib_selective_search(image_t *src, float t, int min_size, float a1, f
     array_alloc(&proposals, xfree);
 
     universe *u = universe_create(width * height);
-    edge *edges = (edge *) fb_alloc(width * height * sizeof(edge) * 4, FB_ALLOC_NO_HINT);
+    edge *edges = (edge *) fb_alloc(width * height * sizeof(edge) * 4);
 
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
@@ -286,7 +286,7 @@ array_t *imlib_selective_search(image_t *src, float t, int min_size, float a1, f
     fb_free();
 
     int num_ccs = universe_num_sets(u);
-    region *regions = (region *) fb_alloc(num_ccs * sizeof(region), FB_ALLOC_NO_HINT);
+    region *regions = (region *) fb_alloc(num_ccs * sizeof(region));
     for (i = 0; i < num_ccs; i++) {
         regions[i].x = width;
         regions[i].w = 0;
@@ -295,9 +295,9 @@ array_t *imlib_selective_search(image_t *src, float t, int min_size, float a1, f
     }
 
     int next_component = 0;
-    int *counts = (int *) fb_alloc0(num_ccs * sizeof(int), FB_ALLOC_NO_HINT);
-    int *components = (int *) fb_alloc(num_ccs * sizeof(int), FB_ALLOC_NO_HINT);
-    float *histogram = (float *) fb_alloc0(num_ccs * sizeof(float) * 75, FB_ALLOC_NO_HINT);
+    int *counts = (int *) fb_alloc0(num_ccs * sizeof(int));
+    int *components = (int *) fb_alloc(num_ccs * sizeof(int));
+    float *histogram = (float *) fb_alloc0(num_ccs * sizeof(float) * 75);
 
     // Calc histograms
     for (int y = 0; y < height; y++) {
@@ -345,7 +345,7 @@ array_t *imlib_selective_search(image_t *src, float t, int min_size, float a1, f
         }
     }
 
-    uint8_t *adjacency = (uint8_t *) fb_alloc0(num_ccs * num_ccs * sizeof(uint8_t), FB_ALLOC_NO_HINT);
+    uint8_t *adjacency = (uint8_t *) fb_alloc0(num_ccs * num_ccs * sizeof(uint8_t));
     for (int y = 0; y < height - 1; ++y) {
         for (int x = 0; x < width - 1; ++x) {
             int component1 = universe_get_id(u, y * width + x);
@@ -365,7 +365,7 @@ array_t *imlib_selective_search(image_t *src, float t, int min_size, float a1, f
     }
 
     int size = height * width;
-    float *similarity_table = (float *) fb_alloc(num_ccs * num_ccs * sizeof(float), FB_ALLOC_NO_HINT);
+    float *similarity_table = (float *) fb_alloc(num_ccs * num_ccs * sizeof(float));
     for (i = 0; i < num_ccs; ++i) {
         for (j = i + 1; j < num_ccs; ++j) {
             float color_sim = a1 * color_similarity(histogram + 75 * i, histogram + 75 * j);

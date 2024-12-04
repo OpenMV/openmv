@@ -158,7 +158,7 @@ static mp_obj_t py_ddc_display_id(mp_obj_t self_in) {
         .len = 1, .buf = (uint8_t []) {0x00} // addr
     }), MP_MACHINE_I2C_FLAG_STOP) == 1) {
         fb_alloc_mark();
-        uint8_t *data = fb_alloc(128, FB_ALLOC_NO_HINT);
+        uint8_t *data = fb_alloc(128);
 
         if (mp_machine_soft_i2c_transfer(self->ddc_bus, self->ddc_addr, 1, &((mp_machine_i2c_buf_t) {
             .len = 128, .buf = data
@@ -172,7 +172,7 @@ static mp_obj_t py_ddc_display_id(mp_obj_t self_in) {
                 int extensions = data[126];
                 int extensions_byte_size = extensions * 128;
                 int total_data_byte_size = extensions_byte_size + 128;
-                uint8_t *data2 = fb_alloc(total_data_byte_size, FB_ALLOC_NO_HINT), *data2_ext = data2 + 128;
+                uint8_t *data2 = fb_alloc(total_data_byte_size), *data2_ext = data2 + 128;
                 memcpy(data2, data, 128);
 
                 if ((mp_machine_soft_i2c_transfer(self->ddc_bus, self->ddc_addr, 1, &((mp_machine_i2c_buf_t) {

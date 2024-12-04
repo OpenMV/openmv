@@ -196,7 +196,7 @@ void umm_init_x(size_t size) {
     if (UMM_MALLOC_CFG_HEAP_SIZE > (sizeof(umm_block) * 32768)) {
         UMM_MALLOC_CFG_HEAP_SIZE = sizeof(umm_block) * 32768;
     }
-    void *UMM_MALLOC_CFG_HEAP_ADDR = fb_alloc(UMM_MALLOC_CFG_HEAP_SIZE, FB_ALLOC_NO_HINT);
+    void *UMM_MALLOC_CFG_HEAP_ADDR = fb_alloc(UMM_MALLOC_CFG_HEAP_SIZE);
     /* init heap pointer and size, and memset it to 0 */
     umm_heap = (umm_block *) UMM_MALLOC_CFG_HEAP_ADDR;
     umm_numblocks = (UMM_MALLOC_CFG_HEAP_SIZE / sizeof(umm_block));

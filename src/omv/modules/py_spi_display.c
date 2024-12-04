@@ -196,7 +196,7 @@ static void spi_display_write(py_display_obj_t *self, image_t *src_img, int dst_
     bool black = p0.x == -1;
 
     if (!self->triple_buffer) {
-        dst_img.data = fb_alloc0(self->width * sizeof(uint16_t), FB_ALLOC_NO_HINT);
+        dst_img.data = fb_alloc0(self->width * sizeof(uint16_t));
 
         spi_display_command(self, LCD_COMMAND_RAMWR, 0);
         spi_switch_mode(self, (!self->byte_swap) ? 16 : 8, true);
@@ -413,7 +413,7 @@ mp_obj_t spi_display_make_new(const mp_obj_type_t *type, size_t n_args, size_t n
         fb_alloc_mark();
         uint32_t fb_size = self->width * self->height * sizeof(uint16_t);
         for (int i = 0; i < FRAMEBUFFER_COUNT; i++) {
-            self->framebuffers[i] = (uint16_t *) fb_alloc0(fb_size, FB_ALLOC_NO_HINT);
+            self->framebuffers[i] = (uint16_t *) fb_alloc0(fb_size);
         }
         fb_alloc_mark_permanent();
     }

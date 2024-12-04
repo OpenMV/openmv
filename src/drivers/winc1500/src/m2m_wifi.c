@@ -795,7 +795,7 @@ sint8 m2m_wifi_connect_1x_mschap2(
 
 			if (ret == M2M_SUCCESS)
 			{
-				tstrM2mWifi1xHdr	*pstr1xHdr = (tstrM2mWifi1xHdr*)fb_alloc(u16AuthSize, 0);
+				tstrM2mWifi1xHdr	*pstr1xHdr = (tstrM2mWifi1xHdr*)fb_alloc(u16AuthSize);
 				if (pstr1xHdr != NULL)
 				{
 					uint8	*pu8AuthPtr = pstr1xHdr->au81xAuthDetails;
@@ -872,7 +872,7 @@ tstrAuth1xTls		*pstrAuth1xTls
 			if (ret == M2M_SUCCESS)
 			{
 				uint16				u16Payload1Size = u16AuthSize - pstrAuth1xTls->u16CertificateLen;
-				tstrM2mWifi1xHdr	*pstr1xHdr = (tstrM2mWifi1xHdr*)fb_alloc(u16Payload1Size, 0);
+				tstrM2mWifi1xHdr	*pstr1xHdr = (tstrM2mWifi1xHdr*)fb_alloc(u16Payload1Size);
 				if (pstr1xHdr != NULL)
 				{
 					tstrM2mWifiAuthInfoHdr strInfoHdr = {0};

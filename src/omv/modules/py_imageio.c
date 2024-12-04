@@ -582,7 +582,7 @@ static mp_obj_t py_imageio_make_new(const mp_obj_type_t *type, size_t n_args, si
         stream->size = IMAGE_T_SIZE_ALIGNED + image_size_aligned(&image);
 
         fb_alloc_mark();
-        stream->buffer = fb_alloc(stream->count * stream->size, FB_ALLOC_NO_HINT);
+        stream->buffer = fb_alloc(stream->count * stream->size);
         fb_alloc_mark_permanent();
     } else {
         mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("Invalid stream type"));

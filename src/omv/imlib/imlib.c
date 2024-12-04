@@ -675,23 +675,23 @@ void imlib_save_image(image_t *img, const char *path, rectangle_t *roi, int qual
         case FORMAT_DONT_CARE:
             // Path doesn't have an extension.
             if (IM_IS_JPEG(img)) {
-                char *new_path = strcat(strcpy(fb_alloc(strlen(path) + 5, FB_ALLOC_NO_HINT), path), ".jpg");
+                char *new_path = strcat(strcpy(fb_alloc(strlen(path) + 5), path), ".jpg");
                 jpeg_write(img, new_path, quality);
                 fb_free();
             } else if (img->pixfmt == PIXFORMAT_PNG) {
-                char *new_path = strcat(strcpy(fb_alloc(strlen(path) + 5, FB_ALLOC_NO_HINT), path), ".png");
+                char *new_path = strcat(strcpy(fb_alloc(strlen(path) + 5), path), ".png");
                 png_write(img, new_path);
                 fb_free();
             } else if (IM_IS_BAYER(img)) {
                 FIL fp;
-                char *new_path = strcat(strcpy(fb_alloc(strlen(path) + 5, FB_ALLOC_NO_HINT), path), ".raw");
+                char *new_path = strcat(strcpy(fb_alloc(strlen(path) + 5), path), ".raw");
                 file_open(&fp, new_path, false, FA_WRITE | FA_CREATE_ALWAYS);
                 file_write(&fp, img->pixels, img->w * img->h);
                 file_close(&fp);
                 fb_free();
             } else {
                 // RGB or GS, save as BMP.
-                char *new_path = strcat(strcpy(fb_alloc(strlen(path) + 5, FB_ALLOC_NO_HINT), path), ".bmp");
+                char *new_path = strcat(strcpy(fb_alloc(strlen(path) + 5), path), ".bmp");
                 bmp_write_subimg(img, new_path, roi);
                 fb_free();
             }
@@ -761,12 +761,12 @@ void imlib_lens_corr(image_t *img, float strength, float zoom, float x_corr, flo
 
     // Create a tmp copy of the image to pull pixels from.
     size_t size = image_size(img);
-    void *data = fb_alloc(size, FB_ALLOC_NO_HINT);
+    void *data = fb_alloc(size);
     memcpy(data, img->data, size);
     memset(img->data, 0, size);
 
     int maximum_radius = fast_ceilf(maximum_diameter / 2) + 1; // +1 inclusive of final value
-    float *precalculated_table = fb_alloc(maximum_radius * sizeof(float), FB_ALLOC_NO_HINT);
+    float *precalculated_table = fb_alloc(maximum_radius * sizeof(float));
 
     for (int i = 0; i < maximum_radius; i++) {
         float r = lens_corr_diameter * i;
@@ -1017,7 +1017,7 @@ int imlib_image_std(image_t *src) {
 void imlib_sepconv3(image_t *img, const int8_t *krn, const float m, const int b) {
     int ksize = 3;
     // TODO: Support RGB
-    int *buffer = fb_alloc(img->w * sizeof(*buffer) * 2, FB_ALLOC_NO_HINT);
+    int *buffer = fb_alloc(img->w * sizeof(*buffer) * 2);
 
     // NOTE: This doesn't deal with borders right now. Adding if
     // statements in the inner loop will slow it down significantly.

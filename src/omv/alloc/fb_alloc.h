@@ -36,8 +36,8 @@ void fb_alloc_mark();
 void fb_alloc_free_till_mark();
 void fb_alloc_mark_permanent(); // tag memory that should not be popped on exception
 void fb_alloc_free_till_mark_past_mark_permanent(); // frees past marked permanent allocations
-void *fb_alloc(uint32_t size, int hints);
-void *fb_alloc0(uint32_t size, int hints);
+void *fb_alloc(uint32_t size);
+void *fb_alloc0(uint32_t size);
 void *fb_alloc_all(uint32_t *size, int hints); // returns pointer and sets size
 void *fb_alloc0_all(uint32_t *size, int hints); // returns pointer and sets size
 void fb_free();

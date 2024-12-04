@@ -141,7 +141,7 @@ void fb_alloc_free_till_mark_past_mark_permanent() {
 }
 
 // returns null pointer without error if size==0
-void *fb_alloc(uint32_t size, int hints) {
+void *fb_alloc(uint32_t size) {
     if (!size) {
         return NULL;
     }
@@ -187,8 +187,8 @@ void *fb_alloc(uint32_t size, int hints) {
 }
 
 // returns null pointer without error if passed size==0
-void *fb_alloc0(uint32_t size, int hints) {
-    void *mem = fb_alloc(size, hints);
+void *fb_alloc0(uint32_t size) {
+    void *mem = fb_alloc(size);
     memset(mem, 0, size); // does nothing if size is zero.
     return mem;
 }

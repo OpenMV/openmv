@@ -159,9 +159,9 @@ void imlib_stereo_disparity(image_t *img, bool reversed, int max_disparity, int 
             break;
         }
         case PIXFORMAT_GRAYSCALE: {
-            buf.data = fb_alloc(IMAGE_GRAYSCALE_LINE_LEN_BYTES(&buf) * BLOCK_H_D, FB_ALLOC_NO_HINT);
-            uint8_t *data_l = fb_alloc(BLOCK_SIZE, FB_ALLOC_NO_HINT);
-            uint8_t *data_r = fb_alloc(BLOCK_SIZE, FB_ALLOC_NO_HINT);
+            buf.data = fb_alloc(IMAGE_GRAYSCALE_LINE_LEN_BYTES(&buf) * BLOCK_H_D);
+            uint8_t *data_l = fb_alloc(BLOCK_SIZE);
+            uint8_t *data_r = fb_alloc(BLOCK_SIZE);
 
             for (int y = 0, yy = height_1 - BLOCK_H_D; y < height_1; y++) {
                 for (int xl = 0, xx = width_2 - BLOCK_W_R; xl < width_2; xl++) {

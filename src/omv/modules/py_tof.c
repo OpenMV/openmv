@@ -453,7 +453,7 @@ mp_obj_t py_tof_draw_depth(uint n_args, const mp_obj_t *pos_args, mp_map_t *kw_a
     const uint8_t *alpha_palette = py_helper_arg_to_palette(args[ARG_alpha_palette].u_obj, PIXFORMAT_GRAYSCALE);
 
     fb_alloc_mark();
-    src_img.data = fb_alloc(src_img.w * src_img.h * sizeof(uint8_t), FB_ALLOC_NO_HINT);
+    src_img.data = fb_alloc(src_img.w * src_img.h * sizeof(uint8_t));
     tof_fill_image_float_obj(&src_img, depth_array, min, max);
 
     imlib_draw_image(dst_img, &src_img, args[ARG_x].u_int, args[ARG_y].u_int, x_scale, y_scale, &roi,
@@ -539,7 +539,7 @@ mp_obj_t py_tof_snapshot(uint n_args, const mp_obj_t *pos_args, mp_map_t *kw_arg
 
     fb_alloc_mark();
     // Allocate source image data.
-    src_img.data = fb_alloc(src_img.w * src_img.h * sizeof(uint8_t), FB_ALLOC_NO_HINT);
+    src_img.data = fb_alloc(src_img.w * src_img.h * sizeof(uint8_t));
 
     switch (tof_sensor) {
         #if (OMV_TOF_VL53L5CX_ENABLE == 1)

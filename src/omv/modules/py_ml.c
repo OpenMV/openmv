@@ -366,7 +366,7 @@ mp_obj_t py_ml_model_make_new(const mp_obj_type_t *type, size_t n_args, size_t n
         FIL fp;
         file_open(&fp, path, false, FA_READ | FA_OPEN_EXISTING);
         model->size = f_size(&fp);
-        model->data = model->fb_alloc ? fb_alloc(model->size, FB_ALLOC_NO_HINT) : xalloc(model->size);
+        model->data = model->fb_alloc ? fb_alloc(model->size) : xalloc(model->size);
         file_read(&fp, model->data, model->size);
         file_close(&fp);
         #else

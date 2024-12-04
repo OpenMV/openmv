@@ -69,7 +69,7 @@ int hash_from_file(const char *path, uint8_t *digest) {
     UINT bytes_out = 0;
 
     int ret = -1;
-    uint8_t *buf = fb_alloc(BLOCK_SIZE, FB_ALLOC_NO_HINT);
+    uint8_t *buf = fb_alloc(BLOCK_SIZE);
 
     if (file_ll_open(&fp, path, FA_READ | FA_OPEN_EXISTING) != FR_OK) {
         goto error;

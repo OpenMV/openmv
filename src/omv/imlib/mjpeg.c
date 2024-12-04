@@ -146,7 +146,7 @@ void mjpeg_write(FIL *fp, int width, int height, uint32_t *frames, uint32_t *byt
             temp.h = dst_img.h;
             temp.pixfmt = PIXFORMAT_RGB565; // TODO PIXFORMAT_ARGB8888
             temp.size = 0;
-            temp.data = fb_alloc(image_size(&temp), FB_ALLOC_NO_HINT);
+            temp.data = fb_alloc(image_size(&temp));
 
             int center_x = fast_floorf((width - (roi->w * scale)) / 2);
             int center_y = fast_floorf((height - (roi->h * scale)) / 2);

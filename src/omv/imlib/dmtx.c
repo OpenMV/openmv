@@ -6008,7 +6008,7 @@ dmtxMatrix3Print(DmtxMatrix3 m)
 
 void imlib_find_datamatrices(list_t *out, image_t *ptr, rectangle_t *roi, int effort)
 {
-    uint8_t *grayscale_image = (ptr->pixfmt == PIXFORMAT_GRAYSCALE) ? ptr->data : fb_alloc(roi->w * roi->h, FB_ALLOC_NO_HINT);
+    uint8_t *grayscale_image = (ptr->pixfmt == PIXFORMAT_GRAYSCALE) ? ptr->data : fb_alloc(roi->w * roi->h);
 
     if (ptr->pixfmt != PIXFORMAT_GRAYSCALE) {
         image_t img;
