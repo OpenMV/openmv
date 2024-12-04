@@ -1044,7 +1044,7 @@ bool imlib_get_regression(find_lines_list_lnk_data_t *out,
         long long *y_delta_histogram = fb_alloc0((2 * ptr->h) * sizeof(long long));
 
         uint32_t size;
-        point_t *points = (point_t *) fb_alloc_all(&size, FB_ALLOC_NO_HINT);
+        point_t *points = (point_t *) fb_alloc_all(&size, false);
         size_t points_max = size / sizeof(point_t);
         size_t points_count = 0;
 

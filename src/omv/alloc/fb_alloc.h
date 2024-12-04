@@ -25,21 +25,20 @@
  */
 #ifndef __FB_ALLOC_H__
 #define __FB_ALLOC_H__
+#include <stdbool.h>
 #include <stdint.h>
-#define FB_ALLOC_NO_HINT        0
-#define FB_ALLOC_FAST_HINT      1
 char *fb_alloc_stack_pointer();
 void fb_alloc_fail();
 void fb_alloc_init0();
-uint32_t fb_avail(int hints);
+uint32_t fb_avail(bool fast);
 void fb_alloc_mark();
 void fb_alloc_free_till_mark();
 void fb_alloc_mark_permanent(); // tag memory that should not be popped on exception
 void fb_alloc_free_till_mark_past_mark_permanent(); // frees past marked permanent allocations
 void *fb_alloc(uint32_t size);
 void *fb_alloc0(uint32_t size);
-void *fb_alloc_all(uint32_t *size, int hints); // returns pointer and sets size
-void *fb_alloc0_all(uint32_t *size, int hints); // returns pointer and sets size
+void *fb_alloc_all(uint32_t *size, bool fast); // returns pointer and sets size
+void *fb_alloc0_all(uint32_t *size, bool fast); // returns pointer and sets size
 void fb_free();
 void fb_free_all();
 #endif /* __FF_ALLOC_H__ */

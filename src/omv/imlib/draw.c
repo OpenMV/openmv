@@ -3145,7 +3145,7 @@ void imlib_draw_image(image_t *dst_img,
         }
 
         // Query available on-chip RAM.
-        uint32_t size = fb_avail(FB_ALLOC_FAST_HINT);
+        uint32_t size = fb_avail(true);
 
         // Allocate a buffer to hold chunks of the transposed image while not using all of the on-chip RAM.
         size = IM_MIN(size, image_size(&t_src_img));
