@@ -718,7 +718,7 @@ void imlib_draw_row_setup(imlib_draw_row_data_t *data) {
     // but with the bpp of the source image.
     size_t image_row_size = image_size(&temp) / data->dst_img->h;
 
-    data->row_buffer = fb_alloc(image_row_size, FB_ALLOC_CACHE_ALIGN);
+    data->row_buffer = fb_alloc(image_row_size, FB_ALLOC_NO_HINT);
 
     int alpha = data->alpha, max = 256;
 
@@ -3032,7 +3032,7 @@ void imlib_draw_image(image_t *dst_img,
         new_src_img.w = src_img_w; // same width as source image
         new_src_img.h = src_img_h; // same height as source image
         new_src_img.pixfmt = color_palette ? PIXFORMAT_RGB565 : PIXFORMAT_GRAYSCALE;
-        new_src_img.data = fb_alloc(image_size(&new_src_img), FB_ALLOC_CACHE_ALIGN);
+        new_src_img.data = fb_alloc(image_size(&new_src_img), FB_ALLOC_NO_HINT);
         imlib_draw_image(&new_src_img, src_img, 0, 0, 1.f, 1.f, NULL,
                          rgb_channel, 255, color_palette, NULL, 0, NULL, NULL, NULL);
         src_img = &new_src_img;
@@ -3080,7 +3080,7 @@ void imlib_draw_image(image_t *dst_img,
         if (!src_img->is_mutable) {
             new_src_img.pixfmt = new_not_mutable_pixfmt;
             size_t size = image_size(&new_src_img);
-            new_src_img.data = fb_alloc(size, FB_ALLOC_CACHE_ALIGN);
+            new_src_img.data = fb_alloc(size, FB_ALLOC_NO_HINT);
 
             switch (new_src_img.pixfmt) {
                 case PIXFORMAT_BINARY:
@@ -3112,7 +3112,7 @@ void imlib_draw_image(image_t *dst_img,
         } else {
             new_src_img.pixfmt = src_img->pixfmt;
             size_t size = image_size(&new_src_img);
-            new_src_img.data = fb_alloc(size, FB_ALLOC_CACHE_ALIGN);
+            new_src_img.data = fb_alloc(size, FB_ALLOC_NO_HINT);
             memcpy(new_src_img.data, src_img->data, size);
         }
 
@@ -3132,7 +3132,7 @@ void imlib_draw_image(image_t *dst_img,
         if ((src_x_frac != 65536) || (src_y_frac != 65536)) {
             t_src_img.w = t_roi.w = src_height_scaled; // was transposed
             t_src_img.h = t_roi.h = src_width_scaled; // was transposed
-            t_src_img.data = fb_alloc(image_size(&t_src_img), FB_ALLOC_CACHE_ALIGN);
+            t_src_img.data = fb_alloc(image_size(&t_src_img), FB_ALLOC_NO_HINT);
             imlib_draw_image(&t_src_img, src_img, 0, 0, x_scale, y_scale, roi,
                              -1, 255, NULL, NULL,
                              hint & (IMAGE_HINT_AREA | IMAGE_HINT_BILINEAR | IMAGE_HINT_BICUBIC),
@@ -3145,11 +3145,11 @@ void imlib_draw_image(image_t *dst_img,
         }
 
         // Query available on-chip RAM.
-        uint32_t size = fb_avail(FB_ALLOC_PREFER_SPEED | FB_ALLOC_CACHE_ALIGN);
+        uint32_t size = fb_avail(FB_ALLOC_PREFER_SPEED);
 
         // Allocate a buffer to hold chunks of the transposed image while not using all of the on-chip RAM.
         size = IM_MIN(size, image_size(&t_src_img));
-        void *data = fb_alloc(size, FB_ALLOC_PREFER_SPEED | FB_ALLOC_CACHE_ALIGN);
+        void *data = fb_alloc(size, FB_ALLOC_PREFER_SPEED);
 
         // line_num stores how many lines we can do at a time with on-chip RAM.
         image_t temp = {.w = t_roi.w, .h = t_roi.h, .pixfmt = t_src_img.pixfmt};

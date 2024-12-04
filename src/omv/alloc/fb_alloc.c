@@ -70,10 +70,8 @@ uint32_t fb_avail(int hints) {
         temp = pointer_overlay - &_fballoc_overlay_start - sizeof(uint32_t);
     }
     #endif
-    if (hints & FB_ALLOC_CACHE_ALIGN) {
-        temp -= OMV_ALLOC_ALIGNMENT - sizeof(uint32_t);
-        temp = (temp / OMV_ALLOC_ALIGNMENT) * OMV_ALLOC_ALIGNMENT;
-    }
+    temp -= OMV_ALLOC_ALIGNMENT - sizeof(uint32_t);
+    temp = (temp / OMV_ALLOC_ALIGNMENT) * OMV_ALLOC_ALIGNMENT;
     return (temp < sizeof(uint32_t)) ? 0 : temp;
 }
 
@@ -148,12 +146,8 @@ void *fb_alloc(uint32_t size, int hints) {
         return NULL;
     }
 
-    size = ((size + sizeof(uint32_t) - 1) / sizeof(uint32_t)) * sizeof(uint32_t); // Round Up
-
-    if (hints & FB_ALLOC_CACHE_ALIGN) {
-        size = ((size + OMV_ALLOC_ALIGNMENT - 1) / OMV_ALLOC_ALIGNMENT) * OMV_ALLOC_ALIGNMENT;
-        size += OMV_ALLOC_ALIGNMENT - sizeof(uint32_t);
-    }
+    size = ((size + OMV_ALLOC_ALIGNMENT - 1) / OMV_ALLOC_ALIGNMENT) * OMV_ALLOC_ALIGNMENT;
+    size += OMV_ALLOC_ALIGNMENT - sizeof(uint32_t);
 
     char *result = pointer - size;
     char *new_pointer = result - sizeof(uint32_t);
@@ -185,11 +179,9 @@ void *fb_alloc(uint32_t size, int hints) {
     }
     #endif
 
-    if (hints & FB_ALLOC_CACHE_ALIGN) {
-        int offset = ((uint32_t) result) % OMV_ALLOC_ALIGNMENT;
-        if (offset) {
-            result += OMV_ALLOC_ALIGNMENT - offset;
-        }
+    int offset = ((uint32_t) result) % OMV_ALLOC_ALIGNMENT;
+    if (offset) {
+        result += OMV_ALLOC_ALIGNMENT - offset;
     }
 
     return result;
@@ -243,16 +235,14 @@ void *fb_alloc_all(uint32_t *size, int hints) {
     }
     #endif
 
-    if (hints & FB_ALLOC_CACHE_ALIGN) {
-        int offset = ((uint32_t) result) % OMV_ALLOC_ALIGNMENT;
-        if (offset) {
-            int inc = OMV_ALLOC_ALIGNMENT - offset;
-            result += inc;
-            *size -= inc;
-        }
-
-        *size = (*size / OMV_ALLOC_ALIGNMENT) * OMV_ALLOC_ALIGNMENT;
+    int offset = ((uint32_t) result) % OMV_ALLOC_ALIGNMENT;
+    if (offset) {
+        int inc = OMV_ALLOC_ALIGNMENT - offset;
+        result += inc;
+        *size -= inc;
     }
+
+    *size = (*size / OMV_ALLOC_ALIGNMENT) * OMV_ALLOC_ALIGNMENT;
 
     return result;
 }

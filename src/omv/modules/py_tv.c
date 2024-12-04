@@ -458,7 +458,7 @@ static void spi_config_init(bool triple_buffer) {
         framebuffer_tail = 0;
 
         for (int i = 0; i < FRAMEBUFFER_COUNT; i++) {
-            framebuffers[i] = (uint16_t *) fb_alloc0(TV_WIDTH_RGB565 * TV_HEIGHT, FB_ALLOC_CACHE_ALIGN);
+            framebuffers[i] = (uint16_t *) fb_alloc0(TV_WIDTH_RGB565 * TV_HEIGHT, FB_ALLOC_NO_HINT);
         }
 
         fb_alloc_mark_permanent();

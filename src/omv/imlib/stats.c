@@ -180,7 +180,7 @@ void imlib_get_similarity(image_t *img,
     state.lines_processed = 0;
     state.lines = p1.y - p0.y;
 
-    void *dst_row_override = fb_alloc0(image_line_size(img), FB_ALLOC_CACHE_ALIGN);
+    void *dst_row_override = fb_alloc0(image_line_size(img), FB_ALLOC_NO_HINT);
     imlib_draw_image(img, other, x_start, y_start, x_scale, y_scale, roi,
                      rgb_channel, alpha, color_palette, alpha_palette,
                      hint, imlib_similarity_line_op, &state, dst_row_override);

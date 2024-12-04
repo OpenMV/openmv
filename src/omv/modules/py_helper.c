@@ -50,7 +50,7 @@ image_t *py_helper_arg_to_image(const mp_obj_t arg, uint32_t flags) {
         img_read_settings_t rs;
         imlib_read_geometry(&fp, image, path, &rs);
         file_close(&fp);
-        image->data = fb_alloc(image_size(image), FB_ALLOC_CACHE_ALIGN);
+        image->data = fb_alloc(image_size(image), FB_ALLOC_NO_HINT);
         imlib_load_image(image, path);
         #else
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("Image I/O is not supported"));

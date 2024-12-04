@@ -1806,7 +1806,7 @@ static mp_obj_t py_image_line_op(uint n_args, const mp_obj_t *pos_args, mp_map_t
 
     void *dst_row_override = NULL;
     if (callback) {
-        dst_row_override = fb_alloc0(image_line_size(image), FB_ALLOC_CACHE_ALIGN);
+        dst_row_override = fb_alloc0(image_line_size(image), FB_ALLOC_NO_HINT);
         // Necessary for alpha blending to work correctly.
         args[ARG_hint].u_int |= IMAGE_HINT_BLACK_BACKGROUND;
     }

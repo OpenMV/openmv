@@ -413,7 +413,7 @@ mp_obj_t spi_display_make_new(const mp_obj_type_t *type, size_t n_args, size_t n
         fb_alloc_mark();
         uint32_t fb_size = self->width * self->height * sizeof(uint16_t);
         for (int i = 0; i < FRAMEBUFFER_COUNT; i++) {
-            self->framebuffers[i] = (uint16_t *) fb_alloc0(fb_size, FB_ALLOC_CACHE_ALIGN);
+            self->framebuffers[i] = (uint16_t *) fb_alloc0(fb_size, FB_ALLOC_NO_HINT);
         }
         fb_alloc_mark_permanent();
     }

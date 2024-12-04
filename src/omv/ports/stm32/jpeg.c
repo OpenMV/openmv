@@ -189,7 +189,7 @@ bool jpeg_compress(image_t *src, image_t *dst, int quality, bool realloc, jpeg_s
         }
 
         dst->size = IMLIB_IMAGE_MAX_SIZE(avail - space);
-        dst->data = fb_alloc(dst->size, FB_ALLOC_PREFER_SIZE | FB_ALLOC_CACHE_ALIGN);
+        dst->data = fb_alloc(dst->size, FB_ALLOC_PREFER_SIZE);
     }
 
     if (src->is_compressed) {
@@ -222,7 +222,7 @@ bool jpeg_compress(image_t *src, image_t *dst, int quality, bool realloc, jpeg_s
     JPEG_state.input_paused = false;
     JPEG_state.output_paused = false;
 
-    uint8_t *mcu_row_buffer = fb_alloc(src_w_mcus_bytes_2, FB_ALLOC_PREFER_SPEED | FB_ALLOC_CACHE_ALIGN);
+    uint8_t *mcu_row_buffer = fb_alloc(src_w_mcus_bytes_2, FB_ALLOC_PREFER_SPEED);
 
     for (int y_offset = 0; y_offset < src->h; y_offset += JPEG_MCU_H) {
         uint8_t *mcu_row_buffer_ptr = mcu_row_buffer + (src_w_mcus_bytes * ((y_offset / JPEG_MCU_H) % 2));
@@ -445,7 +445,7 @@ void jpeg_decompress(image_t *dst, image_t *src) {
 
     if (((uint32_t) src->data) % __SCB_DCACHE_LINE_SIZE) {
         // Copy to cache aligned buffer.
-        JPEG_state.jpeg_descr.pJpegInBuffPtr = fb_alloc(JPEG_state.in_data_len, FB_ALLOC_CACHE_ALIGN);
+        JPEG_state.jpeg_descr.pJpegInBuffPtr = fb_alloc(JPEG_state.in_data_len, FB_ALLOC_NO_HINT);
         memcpy(JPEG_state.jpeg_descr.pJpegInBuffPtr, src->data, src->size);
     } else {
         JPEG_state.jpeg_descr.pJpegInBuffPtr = src->data;
@@ -545,7 +545,7 @@ void jpeg_decompress(image_t *dst, image_t *src) {
     JPEG_state.out_data_len = 0;
     JPEG_state.output_paused = false;
 
-    uint8_t *mcu_row_buffer = fb_alloc(dst_w_mcus_bytes_2, FB_ALLOC_PREFER_SPEED | FB_ALLOC_CACHE_ALIGN);
+    uint8_t *mcu_row_buffer = fb_alloc(dst_w_mcus_bytes_2, FB_ALLOC_PREFER_SPEED);
 
     #if defined(OMV_MDMA_CHANNEL_JPEG_IN)
     // Flush input.

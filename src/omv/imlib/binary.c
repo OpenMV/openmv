@@ -197,7 +197,7 @@ void imlib_binary(image_t *out, image_t *img, list_t *thresholds, bool invert, b
 
     void *dst_row_override = NULL;
     if (callback) {
-        dst_row_override = fb_alloc0(image_line_size(out), FB_ALLOC_CACHE_ALIGN);
+        dst_row_override = fb_alloc0(image_line_size(out), FB_ALLOC_NO_HINT);
     }
 
     imlib_draw_image(out, &bmp, 0, 0, 1.0f, 1.0f, NULL, -1, 255, NULL, NULL, 0, callback, mask, dst_row_override);
@@ -1251,10 +1251,10 @@ static void imlib_hat(image_t *img, int ksize, int threshold, image_t *mask, bin
     temp.w = img->w;
     temp.h = img->h;
     temp.pixfmt = img->pixfmt;
-    temp.data = fb_alloc(image_size(img), FB_ALLOC_CACHE_ALIGN);
+    temp.data = fb_alloc(image_size(img), FB_ALLOC_NO_HINT);
     memcpy(temp.data, img->data, image_size(img));
     op(&temp, ksize, threshold, mask);
-    void *dst_row_override = fb_alloc0(image_line_size(img), FB_ALLOC_CACHE_ALIGN);
+    void *dst_row_override = fb_alloc0(image_line_size(img), FB_ALLOC_NO_HINT);
     imlib_draw_image(img, &temp, 0, 0, 1.0f, 1.0f, NULL, -1, 255, NULL, NULL, 0,
                      imlib_difference_line_op, mask, dst_row_override);
     fb_free(); // dst_row_override
