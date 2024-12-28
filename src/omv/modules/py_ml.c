@@ -37,6 +37,11 @@
 #include "py/objtuple.h"
 #include "py/binary.h"
 
+#if MICROPY_VFS
+#include "py/stream.h"
+#include "extmod/vfs.h"
+#endif
+
 #include "py_helper.h"
 #include "imlib_config.h"
 
@@ -45,9 +50,6 @@
 #include "file_utils.h"
 #include "py_ml.h"
 #include "ulab/code/ndarray.h"
-#if MICROPY_PY_ML_TFLM
-#include "tflm_builtin_models.h"
-#endif
 
 #ifndef IMLIB_ML_MODEL_ALIGN
 #ifndef __DCACHE_PRESENT
@@ -313,9 +315,6 @@ static void py_ml_model_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
             case MP_QSTR_output_zero_point:
                 dest[0] = MP_OBJ_FROM_PTR(self->output_zero_point);
                 break;
-            case MP_QSTR_labels:
-                dest[0] = self->labels;
-                break;
             default:
                 // Continue lookup in locals_dict.
                 dest[1] = MP_OBJ_SENTINEL;
@@ -335,48 +334,41 @@ mp_obj_t py_ml_model_make_new(const mp_obj_type_t *type, size_t n_args, size_t n
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
     mp_arg_parse_all_kw_array(n_args, n_kw, all_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
 
-    const char *path = mp_obj_str_get_str(args[ARG_path].u_obj);
-    (void) path;
-
+    //const char *path = mp_obj_str_get_str(args[ARG_path].u_obj);
     py_ml_model_obj_t *model = mp_obj_malloc_with_finaliser(py_ml_model_obj_t, &py_ml_model_type);
-    model->data = NULL;
-    model->fb_alloc = false;
-    model->labels = mp_const_none;
 
-    #if MICROPY_PY_ML_TFLM
-    // Model loading will use ROMFS eventually, so need to move to the backend.
-    for (const tflm_builtin_model_t *_model = &tflm_builtin_models[0]; _model->name != NULL; _model++) {
-        if (!strcmp(path, _model->name)) {
-            // Load model data.
-            model->size = _model->size;
-            model->data = (unsigned char *) _model->data;
+    #if MICROPY_VFS
+    mp_obj_t file_args[2] = {
+        args[ARG_path].u_obj,
+        MP_OBJ_NEW_QSTR(MP_QSTR_rb),
+    };
 
-            if (_model->n_labels == 0) {
-                break;
-            }
+    mp_buffer_info_t bufinfo;
+    mp_obj_t file = mp_vfs_open(MP_ARRAY_SIZE(file_args), file_args, (mp_map_t *) &mp_const_empty_map);
 
-            // Load model labels
-            model->labels = mp_obj_new_list(_model->n_labels, NULL);
-            mp_obj_list_t *labels = MP_OBJ_TO_PTR(model->labels);
-            for (int l = 0; l < _model->n_labels; l++) {
-                const char *label = _model->labels[l];
-                labels->items[l] = mp_obj_new_str(label, strlen(label));
-            }
-            break;
+    if (mp_get_buffer(file, &bufinfo, MP_BUFFER_READ)) {
+        model->size = bufinfo.len;
+        model->data = bufinfo.buf;
+        model->fb_alloc = false;
+    } else {
+        int error;
+        // Get file size
+        mp_off_t res = mp_stream_seek(file, 0, MP_SEEK_END, &error);
+        if (res == (mp_off_t) -1) {
+            mp_raise_OSError(error);
         }
-    }
-    #endif
+        if (mp_stream_seek(file, 0, MP_SEEK_SET, &error) == (mp_off_t) -1) {
+            mp_raise_OSError(error);
+        }
 
-    if (model->data == NULL) {
-        #if defined(IMLIB_ENABLE_IMAGE_FILE_IO)
-        FIL fp;
-        file_open(&fp, path, false, FA_READ | FA_OPEN_EXISTING);
-        model->size = f_size(&fp);
+        model->size = res;
         model->fb_alloc = args[ARG_load_to_fb].u_bool;
+
+        // Allocate model data buffer.
         if (model->fb_alloc) {
+            // The model's data will Not be free'd on exceptions.
             fb_alloc_mark();
             model->data = fb_alloc(model->size, FB_ALLOC_PREFER_SPEED | FB_ALLOC_CACHE_ALIGN);
-            // The model's data will Not be free'd on exceptions.
             fb_alloc_mark_permanent();
         } else {
             // Align size and memory and keep a reference to the GC block.
@@ -384,12 +376,18 @@ mp_obj_t py_ml_model_make_new(const mp_obj_type_t *type, size_t n_args, size_t n
             model->_raw = xalloc(size + IMLIB_ML_MODEL_ALIGN);
             model->data = (void *) (((uintptr_t) model->_raw + IMLIB_ML_MODEL_ALIGN) & ~IMLIB_ML_MODEL_ALIGN);
         }
-        file_read(&fp, model->data, model->size);
-        file_close(&fp);
-        #else
-        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("Image I/O is not supported"));
-        #endif
+
+        // Read file data.
+        mp_stream_read_exactly(file, model->data, model->size, &error);
+        if (error != 0) {
+            mp_raise_OSError(error);
+        }
     }
+    mp_stream_close(file);
+    #else
+    mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("File I/O is not supported"));
+    #endif
+
 
     ml_backend_init_model(model);
     return MP_OBJ_FROM_PTR(model);

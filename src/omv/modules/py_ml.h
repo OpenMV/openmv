@@ -51,7 +51,6 @@ typedef struct py_ml_model_obj {
     mp_obj_tuple_t *output_scale;
     mp_obj_tuple_t *output_zero_point;
     mp_obj_tuple_t *output_dtype;
-    mp_obj_t labels;
     void *state; // Private context for the backend.
 } py_ml_model_obj_t;
 
