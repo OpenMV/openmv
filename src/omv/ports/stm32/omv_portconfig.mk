@@ -33,6 +33,9 @@ SIGN_TOOL = $(TOOLS)/st/cubeprog/bin/STM32MP_SigningTool_CLI
 PROG_TOOL = $(TOOLS)/st/cubeprog/bin/STM32_Programmer.sh
 STLDR_DIR = $(TOOLS)/st/cubeprog/bin/ExternalLoader/
 
+ROMFS_IMAGE := $(FW_DIR)/romfs.stamp
+ROMFS_CONFIG := $(OMV_BOARD_CONFIG_DIR)/romfs.json
+
 # Compiler Flags
 CFLAGS += -std=gnu99 \
           -Wall \
@@ -436,6 +439,8 @@ FIRM_OBJ += $(addprefix $(BUILD)/$(MICROPY_DIR)/extmod/,\
 	vfs_fat_diskio.o \
 	vfs_fat_file.o \
 	vfs_lfs.o \
+	vfs_rom.o \
+	vfs_rom_file.o \
 	vfs_posix.o \
 	vfs_posix_file.o \
 	vfs_reader.o \
@@ -673,7 +678,6 @@ ifeq ($(MICROPY_PY_ML_TFLM), 1)
 OMV_CFLAGS += -I$(BUILD)/$(TENSORFLOW_DIR)/
 FIRM_OBJ += $(addprefix $(BUILD)/$(TENSORFLOW_DIR)/, \
 	tflm_backend.o \
-	tflm_builtin_models.o \
 	)
 LIBS += $(TOP_DIR)/$(TENSORFLOW_DIR)/libtflm/lib/libtflm-$(CPU)+fp-release.a
 endif
@@ -690,9 +694,6 @@ $(FW_DIR):
 FIRMWARE_OBJS: | $(BUILD) $(FW_DIR)
 	$(MAKE)  -C $(CMSIS_DIR)                 BUILD=$(BUILD)/$(CMSIS_DIR)        CFLAGS="$(CFLAGS) -fno-strict-aliasing -MMD"
 	$(MAKE)  -C $(HAL_DIR)                   BUILD=$(BUILD)/$(HAL_DIR)          CFLAGS="$(CFLAGS) -MMD"
-ifeq ($(MICROPY_PY_ML_TFLM), 1)
-	$(MAKE)  -C $(TENSORFLOW_DIR)            BUILD=$(BUILD)/$(TENSORFLOW_DIR)   CFLAGS="$(CFLAGS) -MMD" headers
-endif
 	$(MAKE)  -C $(MICROPY_DIR)/ports/$(PORT) BUILD=$(BUILD)/$(MICROPY_DIR)      $(MPY_MKARGS)
 	$(MAKE)  -C $(GENX320_DIR)               BUILD=$(BUILD)/$(GENX320_DIR)      CFLAGS="$(CFLAGS) -MMD"
 	$(MAKE)  -C $(BOSON_DIR)                 BUILD=$(BUILD)/$(BOSON_DIR)        CFLAGS="$(CFLAGS) -MMD"
@@ -747,6 +748,12 @@ endif
 	$(PYTHON) $(MKDFU) -D $(DFU_DEVICE) -b $(OMV_BOOT_ADDR):$(FW_DIR)/$(BOOTLOADER).bin $(FW_DIR)/$(BOOTLOADER).dfu
 endif
 
+$(ROMFS_IMAGE): $(ROMFS_CONFIG)
+	$(ECHO) "GEN romfs image"
+	$(PYTHON) $(TOOLS)/$(MKROMFS) --top-dir $(TOP_DIR) --out-dir $(FW_DIR) \
+                                  --build-dir $(BUILD) --config $(ROMFS_CONFIG)
+	touch $@
+
 # This target builds the main/app firmware image.
 $(FIRMWARE): FIRMWARE_OBJS
 	$(CPP) -P -E  -I$(OMV_COMMON_DIR) -I$(OMV_BOARD_CONFIG_DIR) \
@@ -756,7 +763,7 @@ $(FIRMWARE): FIRMWARE_OBJS
 	$(PYTHON) $(MKDFU) -D $(DFU_DEVICE) -b $(OMV_FIRM_ADDR):$(FW_DIR)/$(FIRMWARE).bin $(FW_DIR)/$(FIRMWARE).dfu
 
 # This target builds a contiguous firmware image.
-$(OPENMV): $(BOOTLOADER) $(UVC) $(FIRMWARE)
+$(OPENMV): $(BOOTLOADER) $(UVC) $(FIRMWARE) .WAIT $(ROMFS_IMAGE)
 ifeq ($(OMV_ENABLE_BL), 1)
 	# Pad the bootloader binary with 0xFF up to the firmware start.
 	$(OBJCOPY) -I binary -O binary --pad-to $$(($(OMV_FIRM_ADDR) - $(OMV_FIRM_BASE))) \
