@@ -6807,14 +6807,11 @@ mp_obj_t py_image_load_cascade(uint n_args, const mp_obj_t *args, mp_map_t *kw_a
     const char *path = mp_obj_str_get_str(args[0]);
 
     // Load cascade from file or flash
-    int res = imlib_load_cascade(&cascade, path);
-    if (res != FR_OK) {
-        #if defined(IMLIB_ENABLE_IMAGE_FILE_IO)
-        // cascade is not built-in and failed to load it from file.
-        mp_raise_msg(&mp_type_OSError, (mp_rom_error_text_t) file_strerror(res));
+    if (imlib_load_cascade(&cascade, path) != 0) {
+        #if MICROPY_VFS
+        mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("Failed to load Haar cascade"));
         #else
-        // cascade is not built-in.
-        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("Image I/O is not supported"));
+        mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("Image I/O is not supported"));
         #endif
     }
 
