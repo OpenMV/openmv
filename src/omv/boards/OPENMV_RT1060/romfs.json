@@ -1,0 +1,58 @@
+{
+  "0": {
+    "size": "0x800000",
+    "entries": [
+    {
+      "type": "tflite",
+      "path": "{TOP}/lib/tflm/models/audio_preprocessor.tflite",
+      "alignment": 16,
+      "optimize": "Performance"
+    },
+    {
+      "type": "tflite",
+      "path": "{TOP}/lib/tflm/models/fomo_face_detection.tflite",
+      "alignment": 16,
+      "optimize": "Performance"
+    },
+    {
+      "type": "tflite",
+      "path": "{TOP}/lib/tflm/models/yolo_v5_224_nano.tflite",
+      "alignment": 16,
+      "optimize": "Performance"
+    },
+    {
+      "type": "tflite",
+      "path": "{TOP}/lib/tflm/models/force_int_quant.tflite",
+      "alignment": 16,
+      "optimize": "Performance"
+    },
+    {
+      "type": "tflite",
+      "path": "{TOP}/lib/tflm/models/micro_speech.tflite",
+      "alignment": 16,
+      "optimize": "Performance"
+    },
+    {
+      "type": "tflite",
+      "path": "{TOP}/lib/tflm/models/person_detect.tflite",
+      "alignment": 16,
+      "optimize": "Performance"
+    },
+    {
+      "type": "haar",
+      "path": "{TOP}/lib/haar/haarcascade_eye.xml",
+      "stages": 0
+    },
+    {
+      "type": "haar",
+      "path": "{TOP}/lib/haar/haarcascade_smile.xml",
+      "stages": 0
+    },
+    {
+      "type": "haar",
+      "path": "{TOP}/lib/haar/haarcascade_frontalface.xml",
+      "stages": 0
+    }
+    ]
+  }
+}
