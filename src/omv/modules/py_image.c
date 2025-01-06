@@ -2163,24 +2163,31 @@ static mp_obj_t py_image_histeq(uint n_args, const mp_obj_t *args, mp_map_t *kw_
 static MP_DEFINE_CONST_FUN_OBJ_KW(py_image_histeq_obj, 1, py_image_histeq);
 
 #ifdef IMLIB_ENABLE_MEAN
-static mp_obj_t py_image_mean(uint n_args, const mp_obj_t *args, mp_map_t *kw_args) {
-    image_t *arg_img =
-        py_helper_arg_to_image(args[0], ARG_IMAGE_MUTABLE);
-    int arg_ksize =
-        py_helper_arg_to_ksize(args[1]);
-    bool arg_threshold =
-        py_helper_keyword_int(n_args, args, 2, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_threshold), false);
-    int arg_offset =
-        py_helper_keyword_int(n_args, args, 3, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_offset), 0);
-    bool arg_invert =
-        py_helper_keyword_int(n_args, args, 4, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_invert), false);
-    image_t *arg_msk =
-        py_helper_keyword_to_image(n_args, args, 5, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_mask), NULL);
+static mp_obj_t py_image_mean(uint n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+    enum { ARG_threshold, ARG_offset, ARG_invert, ARG_mask };
+    static const mp_arg_t allowed_args[] = {
+        { MP_QSTR_threshold, MP_ARG_BOOL | MP_ARG_KW_ONLY,  {.u_bool = false } },
+        { MP_QSTR_offset, MP_ARG_INT | MP_ARG_KW_ONLY,  {.u_int = 0 } },
+        { MP_QSTR_invert, MP_ARG_BOOL | MP_ARG_KW_ONLY,  {.u_bool = false } },
+        { MP_QSTR_mask, MP_ARG_OBJ | MP_ARG_KW_ONLY,  {.u_rom_obj = MP_ROM_NONE} },
+    };
+
+    // Parse args.
+    image_t *image = py_helper_arg_to_image(pos_args[0], ARG_IMAGE_MUTABLE);
+    int ksize = py_helper_arg_to_ksize(pos_args[1]);
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args - 2, pos_args + 2, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
 
     fb_alloc_mark();
-    imlib_mean_filter(arg_img, arg_ksize, arg_threshold, arg_offset, arg_invert, arg_msk);
+    image_t *mask = NULL;
+    if (args[ARG_mask].u_obj != mp_const_none) {
+        mask = py_helper_arg_to_image(args[ARG_mask].u_obj, ARG_IMAGE_MUTABLE | ARG_IMAGE_ALLOC);
+    }
+
+    imlib_mean_filter(image, ksize, args[ARG_threshold].u_bool,
+                      args[ARG_offset].u_int, args[ARG_invert].u_bool, mask);
     fb_alloc_free_till_mark();
-    return args[0];
+    return pos_args[0];
 }
 static MP_DEFINE_CONST_FUN_OBJ_KW(py_image_mean_obj, 2, py_image_mean);
 #endif // IMLIB_ENABLE_MEAN
