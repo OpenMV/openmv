@@ -211,47 +211,14 @@ void imlib_binary(image_t *out, image_t *img, list_t *thresholds, bool invert, b
 
 void imlib_invert(image_t *img) {
     uint32_t n = image_size(img);
-    uint32_t *p32 = (uint32_t *) img->data;
+    uint32_t *p = (uint32_t *) img->data;
 
-    switch (img->pixfmt) {
-        case PIXFORMAT_BINARY: {
-            for (; n >= 4; n -= 4, p32++) {
-                *p32 = ~*p32;
-            }
-            break;
-        }
-        case PIXFORMAT_GRAYSCALE: {
-            #if (__ARM_ARCH > 6)
-            for (; n >= 4; n -= 4, p32++) {
-                *p32 = ~*p32;
-            }
-            #endif
-
-            uint8_t *p8 = (uint8_t *) p32;
-
-            for (; n >= 1; n -= 1, p8++) {
-                *p8 = ~*p8;
-            }
-            break;
-        }
-        case PIXFORMAT_RGB565: {
-            #if (__ARM_ARCH > 6)
-            for (; n >= 4; n -= 4, p32++) {
-                *p32 = ~*p32;
-            }
-            #endif
-
-            uint16_t *p16 = (uint16_t *) p32;
-
-            for (; n >= 2; n -= 2, p16++) {
-                *p16 = ~*p16;
-            }
-            break;
-        }
-        default: {
-            break;
-        }
+    for (; n >= UINT8_VECTOR_SIZE; n -= UINT8_VECTOR_SIZE, p += UINT32_VECTOR_SIZE) {
+        vstr_u32(p, vmvn_u32(vldr_u32(p)));
     }
+
+    v128_predicate_t pred = vpredicate_8(n);
+    vstr_u8_pred((uint8_t *) p, vmvn_u32(vldr_u8_pred((uint8_t *) p, pred)), pred);
 }
 
 void imlib_b_and_line_op(int x, int x_end, int y_row, imlib_draw_row_data_t *data) {
@@ -263,27 +230,34 @@ void imlib_b_and_line_op(int x, int x_end, int y_row, imlib_draw_row_data_t *dat
             uint32_t *row1 = (uint32_t *) data->dst_row_override;
 
             if (!mask) {
-                #if (__ARM_ARCH > 6)
-                // Align to 32-bit boundary.
-                for (; (x % 32) && (x < x_end); x++) {
-                    uint32_t p0 = IMAGE_GET_BINARY_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_BINARY_PIXEL_FAST(row1, x);
-                    uint32_t p = p0 & p1;
-                    IMAGE_PUT_BINARY_PIXEL_FAST(row0, x, p);
+                uint32_t n = x_end - x;
+                uint32_t unaligned = x % UINT32_T_BITS;
+
+                if (unaligned) {
+                    uint32_t unaligned_len = IM_MIN(UINT32_T_BITS - unaligned, n);
+                    uint32_t vp0 = vldr_binary_bits(row0, x, unaligned_len);
+                    uint32_t vp1 = vldr_binary_bits(row1, x, unaligned_len);
+                    vstr_binary_bits(row0, x, unaligned_len, vp0 & vp1);
+                    x += unaligned_len;
+                    n -= unaligned_len;
                 }
 
-                for (; (x_end - x) >= 32; x += 32) {
-                    uint32_t p0 = row0[x / 32];
-                    uint32_t p1 = ((uint32_t *) row1)[x / 32];
-                    row0[x / 32] = p0 & p1;
+                if (UINT32_VECTOR_BITS > UINT32_T_BITS) {
+                    for (uint32_t i = x / UINT32_T_BITS; n >= UINT32_VECTOR_BITS;
+                         n -= UINT32_VECTOR_BITS, x += UINT32_VECTOR_BITS, i += UINT32_VECTOR_SIZE) {
+                        vstr_u32(row0 + i, vand_u32(vldr_u32(row0 + i), vldr_u32(row1 + i)));
+                    }
                 }
-                #endif
 
-                for (; x < x_end; x++) {
-                    uint32_t p0 = IMAGE_GET_BINARY_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_BINARY_PIXEL_FAST(row1, x);
-                    uint32_t p = p0 & p1;
-                    IMAGE_PUT_BINARY_PIXEL_FAST(row0, x, p);
+                for (uint32_t i = x / UINT32_T_BITS; n >= UINT32_T_BITS;
+                     n -= UINT32_T_BITS, x += UINT32_T_BITS, i++) {
+                    row0[i] = row0[i] & row1[i];
+                }
+
+                if (n) {
+                    uint32_t vp0 = vldr_binary_bits(row0, x, n);
+                    uint32_t vp1 = vldr_binary_bits(row1, x, n);
+                    vstr_binary_bits(row0, x, n, vp0 & vp1);
                 }
             } else {
                 for (; x < x_end; x++) {
@@ -302,19 +276,16 @@ void imlib_b_and_line_op(int x, int x_end, int y_row, imlib_draw_row_data_t *dat
             uint8_t *row1 = (uint8_t *) data->dst_row_override;
 
             if (!mask) {
-                #if (__ARM_ARCH > 6)
-                for (; (x_end - x) >= 4; x += 4) {
-                    uint32_t p0 = *((uint32_t *) (row0 + x));
-                    uint32_t p1 = *((uint32_t *) (row1 + x));
-                    *((uint32_t *) (row0 + x)) = p0 & p1;
-                }
-                #endif
+                uint32_t n = x_end - x;
 
-                for (; x < x_end; x++) {
-                    uint32_t p0 = IMAGE_GET_GRAYSCALE_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_GRAYSCALE_PIXEL_FAST(row1, x);
-                    uint32_t p = p0 & p1;
-                    IMAGE_PUT_GRAYSCALE_PIXEL_FAST(row0, x, p);
+                for (; n >= UINT8_VECTOR_SIZE; n -= UINT8_VECTOR_SIZE, x += UINT8_VECTOR_SIZE) {
+                    vstr_u8(row0 + x, vand_u32(vldr_u8(row0 + x), vldr_u8(row1 + x)));
+                }
+
+                if (n) {
+                    v128_predicate_t pred = vpredicate_8(n);
+                    v2x_rows_t data = vldr_u8_pred_x2((v2x_row_ptrs_t) {.p0.u8 = row0, .p1.u8 = row1}, x, pred);
+                    vstr_u8_pred(row0 + x, vand_u32(data.r0, data.r1), pred);
                 }
             } else {
                 for (; x < x_end; x++) {
@@ -333,19 +304,16 @@ void imlib_b_and_line_op(int x, int x_end, int y_row, imlib_draw_row_data_t *dat
             uint16_t *row1 = (uint16_t *) data->dst_row_override;
 
             if (!mask) {
-                #if (__ARM_ARCH > 6)
-                for (; (x_end - x) >= 2; x += 2) {
-                    uint32_t p0 = *((uint32_t *) (row0 + x));
-                    uint32_t p1 = *((uint32_t *) (row1 + x));
-                    *((uint32_t *) (row0 + x)) = p0 & p1;
-                }
-                #endif
+                uint32_t n = x_end - x;
 
-                for (; x < x_end; x++) {
-                    uint32_t p0 = IMAGE_GET_RGB565_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_RGB565_PIXEL_FAST(row1, x);
-                    uint32_t p = p0 & p1;
-                    IMAGE_PUT_RGB565_PIXEL_FAST(row0, x, p);
+                for (; n >= UINT16_VECTOR_SIZE; n -= UINT16_VECTOR_SIZE, x += UINT16_VECTOR_SIZE) {
+                    vstr_u16(row0 + x, vand_u32(vldr_u16(row0 + x), vldr_u16(row1 + x)));
+                }
+
+                if (n) {
+                    v128_predicate_t pred = vpredicate_16(n);
+                    v2x_rows_t data = vldr_u16_pred_x2((v2x_row_ptrs_t) {.p0.u16 = row0, .p1.u16 = row1}, x, pred);
+                    vstr_u16_pred(row0 + x, vand_u32(data.r0, data.r1), pred);
                 }
             } else {
                 for (; x < x_end; x++) {
@@ -374,27 +342,34 @@ void imlib_b_nand_line_op(int x, int x_end, int y_row, imlib_draw_row_data_t *da
             uint32_t *row1 = (uint32_t *) data->dst_row_override;
 
             if (!mask) {
-                #if (__ARM_ARCH > 6)
-                // Align to 32-bit boundary.
-                for (; (x % 32) && (x < x_end); x++) {
-                    uint32_t p0 = IMAGE_GET_BINARY_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_BINARY_PIXEL_FAST(row1, x);
-                    uint32_t p = ~(p0 & p1);
-                    IMAGE_PUT_BINARY_PIXEL_FAST(row0, x, p);
+                uint32_t n = x_end - x;
+                uint32_t unaligned = x % UINT32_T_BITS;
+
+                if (unaligned) {
+                    uint32_t unaligned_len = IM_MIN(UINT32_T_BITS - unaligned, n);
+                    uint32_t vp0 = vldr_binary_bits(row0, x, unaligned_len);
+                    uint32_t vp1 = vldr_binary_bits(row1, x, unaligned_len);
+                    vstr_binary_bits(row0, x, unaligned_len, ~(vp0 & vp1));
+                    x += unaligned_len;
+                    n -= unaligned_len;
                 }
 
-                for (; (x_end - x) >= 32; x += 32) {
-                    uint32_t p0 = row0[x / 32];
-                    uint32_t p1 = row1[x / 32];
-                    row0[x / 32] = ~(p0 & p1);
+                if (UINT32_VECTOR_BITS > UINT32_T_BITS) {
+                    for (uint32_t i = x / UINT32_T_BITS; n >= UINT32_VECTOR_BITS;
+                         n -= UINT32_VECTOR_BITS, x += UINT32_VECTOR_BITS, i += UINT32_VECTOR_SIZE) {
+                        vstr_u32(row0 + i, vmvn_u32(vand_u32(vldr_u32(row0 + i), vldr_u32(row1 + i))));
+                    }
                 }
-                #endif
 
-                for (; x < x_end; x++) {
-                    uint32_t p0 = IMAGE_GET_BINARY_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_BINARY_PIXEL_FAST(row1, x);
-                    uint32_t p = ~(p0 & p1);
-                    IMAGE_PUT_BINARY_PIXEL_FAST(row0, x, p);
+                for (uint32_t i = x / UINT32_T_BITS; n >= UINT32_T_BITS;
+                     n -= UINT32_T_BITS, x += UINT32_T_BITS, i++) {
+                    row0[i] = ~(row0[i] & row1[i]);
+                }
+
+                if (n) {
+                    uint32_t vp0 = vldr_binary_bits(row0, x, n);
+                    uint32_t vp1 = vldr_binary_bits(row1, x, n);
+                    vstr_binary_bits(row0, x, n, ~(vp0 & vp1));
                 }
             } else {
                 for (; x < x_end; x++) {
@@ -413,19 +388,16 @@ void imlib_b_nand_line_op(int x, int x_end, int y_row, imlib_draw_row_data_t *da
             uint8_t *row1 = (uint8_t *) data->dst_row_override;
 
             if (!mask) {
-                #if (__ARM_ARCH > 6)
-                for (; (x_end - x) >= 4; x += 4) {
-                    uint32_t p0 = *((uint32_t *) (row0 + x));
-                    uint32_t p1 = *((uint32_t *) (row1 + x));
-                    *((uint32_t *) (row0 + x)) = ~(p0 & p1);
-                }
-                #endif
+                uint32_t n = x_end - x;
 
-                for (; x < x_end; x++) {
-                    uint32_t p0 = IMAGE_GET_GRAYSCALE_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_GRAYSCALE_PIXEL_FAST(row1, x);
-                    uint32_t p = ~(p0 & p1);
-                    IMAGE_PUT_GRAYSCALE_PIXEL_FAST(row0, x, p);
+                for (; n >= UINT8_VECTOR_SIZE; n -= UINT8_VECTOR_SIZE, x += UINT8_VECTOR_SIZE) {
+                    vstr_u8(row0 + x, vmvn_u32(vand_u32(vldr_u8(row0 + x), vldr_u8(row1 + x))));
+                }
+
+                if (n) {
+                    v128_predicate_t pred = vpredicate_8(n);
+                    v2x_rows_t data = vldr_u8_pred_x2((v2x_row_ptrs_t) {.p0.u8 = row0, .p1.u8 = row1}, x, pred);
+                    vstr_u8_pred(row0 + x, vmvn_u32(vand_u32(data.r0, data.r1)), pred);
                 }
             } else {
                 for (; x < x_end; x++) {
@@ -444,19 +416,16 @@ void imlib_b_nand_line_op(int x, int x_end, int y_row, imlib_draw_row_data_t *da
             uint16_t *row1 = (uint16_t *) data->dst_row_override;
 
             if (!mask) {
-                #if (__ARM_ARCH > 6)
-                for (; (x_end - x) >= 2; x += 2) {
-                    uint32_t p0 = *((uint32_t *) (row0 + x));
-                    uint32_t p1 = *((uint32_t *) (row1 + x));
-                    *((uint32_t *) (row0 + x)) = ~(p0 & p1);
-                }
-                #endif
+                uint32_t n = x_end - x;
 
-                for (; x < x_end; x++) {
-                    uint32_t p0 = IMAGE_GET_RGB565_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_RGB565_PIXEL_FAST(row1, x);
-                    uint32_t p = ~(p0 & p1);
-                    IMAGE_PUT_RGB565_PIXEL_FAST(row0, x, p);
+                for (; n >= UINT16_VECTOR_SIZE; n -= UINT16_VECTOR_SIZE, x += UINT16_VECTOR_SIZE) {
+                    vstr_u16(row0 + x, vmvn_u32(vand_u32(vldr_u16(row0 + x), vldr_u16(row1 + x))));
+                }
+
+                if (n) {
+                    v128_predicate_t pred = vpredicate_16(n);
+                    v2x_rows_t data = vldr_u16_pred_x2((v2x_row_ptrs_t) {.p0.u16 = row0, .p1.u16 = row1}, x, pred);
+                    vstr_u16_pred(row0 + x, vmvn_u32(vand_u32(data.r0, data.r1)), pred);
                 }
             } else {
                 for (; x < x_end; x++) {
@@ -485,27 +454,34 @@ void imlib_b_or_line_op(int x, int x_end, int y_row, imlib_draw_row_data_t *data
             uint32_t *row1 = (uint32_t *) data->dst_row_override;
 
             if (!mask) {
-                #if (__ARM_ARCH > 6)
-                // Align to 32-bit boundary.
-                for (; (x % 32) && (x < x_end); x++) {
-                    uint32_t p0 = IMAGE_GET_BINARY_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_BINARY_PIXEL_FAST(row1, x);
-                    uint32_t p = p0 | p1;
-                    IMAGE_PUT_BINARY_PIXEL_FAST(row0, x, p);
+                uint32_t n = x_end - x;
+                uint32_t unaligned = x % UINT32_T_BITS;
+
+                if (unaligned) {
+                    uint32_t unaligned_len = IM_MIN(UINT32_T_BITS - unaligned, n);
+                    uint32_t vp0 = vldr_binary_bits(row0, x, unaligned_len);
+                    uint32_t vp1 = vldr_binary_bits(row1, x, unaligned_len);
+                    vstr_binary_bits(row0, x, unaligned_len, vp0 | vp1);
+                    x += unaligned_len;
+                    n -= unaligned_len;
                 }
 
-                for (; (x_end - x) >= 32; x += 32) {
-                    uint32_t p0 = row0[x / 32];
-                    uint32_t p1 = row1[x / 32];
-                    row0[x / 32] = p0 | p1;
+                if (UINT32_VECTOR_BITS > UINT32_T_BITS) {
+                    for (uint32_t i = x / UINT32_T_BITS; n >= UINT32_VECTOR_BITS;
+                         n -= UINT32_VECTOR_BITS, x += UINT32_VECTOR_BITS, i += UINT32_VECTOR_SIZE) {
+                        vstr_u32(row0 + i, vorr_u32(vldr_u32(row0 + i), vldr_u32(row1 + i)));
+                    }
                 }
-                #endif
 
-                for (; x < x_end; x++) {
-                    uint32_t p0 = IMAGE_GET_BINARY_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_BINARY_PIXEL_FAST(row1, x);
-                    uint32_t p = p0 | p1;
-                    IMAGE_PUT_BINARY_PIXEL_FAST(row0, x, p);
+                for (uint32_t i = x / UINT32_T_BITS; n >= UINT32_T_BITS;
+                     n -= UINT32_T_BITS, x += UINT32_T_BITS, i++) {
+                    row0[i] = row0[i] | row1[i];
+                }
+
+                if (n) {
+                    uint32_t vp0 = vldr_binary_bits(row0, x, n);
+                    uint32_t vp1 = vldr_binary_bits(row1, x, n);
+                    vstr_binary_bits(row0, x, n, vp0 | vp1);
                 }
             } else {
                 for (; x < x_end; x++) {
@@ -524,19 +500,16 @@ void imlib_b_or_line_op(int x, int x_end, int y_row, imlib_draw_row_data_t *data
             uint8_t *row1 = (uint8_t *) data->dst_row_override;
 
             if (!mask) {
-                #if (__ARM_ARCH > 6)
-                for (; (x_end - x) >= 4; x += 4) {
-                    uint32_t p0 = *((uint32_t *) (row0 + x));
-                    uint32_t p1 = *((uint32_t *) (row1 + x));
-                    *((uint32_t *) (row0 + x)) = p0 | p1;
-                }
-                #endif
+                uint32_t n = x_end - x;
 
-                for (; x < x_end; x++) {
-                    uint32_t p0 = IMAGE_GET_GRAYSCALE_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_GRAYSCALE_PIXEL_FAST(row1, x);
-                    uint32_t p = p0 | p1;
-                    IMAGE_PUT_GRAYSCALE_PIXEL_FAST(row0, x, p);
+                for (; n >= UINT8_VECTOR_SIZE; n -= UINT8_VECTOR_SIZE, x += UINT8_VECTOR_SIZE) {
+                    vstr_u8(row0 + x, vorr_u32(vldr_u8(row0 + x), vldr_u8(row1 + x)));
+                }
+
+                if (n) {
+                    v128_predicate_t pred = vpredicate_8(n);
+                    v2x_rows_t data = vldr_u8_pred_x2((v2x_row_ptrs_t) {.p0.u8 = row0, .p1.u8 = row1}, x, pred);
+                    vstr_u8_pred(row0 + x, vorr_u32(data.r0, data.r1), pred);
                 }
             } else {
                 for (; x < x_end; x++) {
@@ -555,19 +528,16 @@ void imlib_b_or_line_op(int x, int x_end, int y_row, imlib_draw_row_data_t *data
             uint16_t *row1 = (uint16_t *) data->dst_row_override;
 
             if (!mask) {
-                #if (__ARM_ARCH > 6)
-                for (; (x_end - x) >= 2; x += 2) {
-                    uint32_t p0 = *((uint32_t *) (row0 + x));
-                    uint32_t p1 = *((uint32_t *) (row1 + x));
-                    *((uint32_t *) (row0 + x)) = p0 | p1;
-                }
-                #endif
+                uint32_t n = x_end - x;
 
-                for (; x < x_end; x++) {
-                    uint32_t p0 = IMAGE_GET_RGB565_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_RGB565_PIXEL_FAST(row1, x);
-                    uint32_t p = p0 | p1;
-                    IMAGE_PUT_RGB565_PIXEL_FAST(row0, x, p);
+                for (; n >= UINT16_VECTOR_SIZE; n -= UINT16_VECTOR_SIZE, x += UINT16_VECTOR_SIZE) {
+                    vstr_u16(row0 + x, vorr_u32(vldr_u16(row0 + x), vldr_u16(row1 + x)));
+                }
+
+                if (n) {
+                    v128_predicate_t pred = vpredicate_16(n);
+                    v2x_rows_t data = vldr_u16_pred_x2((v2x_row_ptrs_t) {.p0.u16 = row0, .p1.u16 = row1}, x, pred);
+                    vstr_u16_pred(row0 + x, vorr_u32(data.r0, data.r1), pred);
                 }
             } else {
                 for (; x < x_end; x++) {
@@ -596,27 +566,34 @@ void imlib_b_nor_line_op(int x, int x_end, int y_row, imlib_draw_row_data_t *dat
             uint32_t *row1 = (uint32_t *) data->dst_row_override;
 
             if (!mask) {
-                #if (__ARM_ARCH > 6)
-                // Align to 32-bit boundary.
-                for (; (x % 32) && (x < x_end); x++) {
-                    uint32_t p0 = IMAGE_GET_BINARY_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_BINARY_PIXEL_FAST(row1, x);
-                    uint32_t p = ~(p0 | p1);
-                    IMAGE_PUT_BINARY_PIXEL_FAST(row0, x, p);
+                uint32_t n = x_end - x;
+                uint32_t unaligned = x % UINT32_T_BITS;
+
+                if (unaligned) {
+                    uint32_t unaligned_len = IM_MIN(UINT32_T_BITS - unaligned, n);
+                    uint32_t vp0 = vldr_binary_bits(row0, x, unaligned_len);
+                    uint32_t vp1 = vldr_binary_bits(row1, x, unaligned_len);
+                    vstr_binary_bits(row0, x, unaligned_len, ~(vp0 | vp1));
+                    x += unaligned_len;
+                    n -= unaligned_len;
                 }
 
-                for (; (x_end - x) >= 32; x += 32) {
-                    uint32_t p0 = row0[x / 32];
-                    uint32_t p1 = row1[x / 32];
-                    row0[x / 32] = ~(p0 | p1);
+                if (UINT32_VECTOR_BITS > UINT32_T_BITS) {
+                    for (uint32_t i = x / UINT32_T_BITS; n >= UINT32_VECTOR_BITS;
+                         n -= UINT32_VECTOR_BITS, x += UINT32_VECTOR_BITS, i += UINT32_VECTOR_SIZE) {
+                        vstr_u32(row0 + i, vmvn_u32(vorr_u32(vldr_u32(row0 + i), vldr_u32(row1 + i))));
+                    }
                 }
-                #endif
 
-                for (; x < x_end; x++) {
-                    uint32_t p0 = IMAGE_GET_BINARY_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_BINARY_PIXEL_FAST(row1, x);
-                    uint32_t p = ~(p0 | p1);
-                    IMAGE_PUT_BINARY_PIXEL_FAST(row0, x, p);
+                for (uint32_t i = x / UINT32_T_BITS; n >= UINT32_T_BITS;
+                     n -= UINT32_T_BITS, x += UINT32_T_BITS, i++) {
+                    row0[i] = ~(row0[i] | row1[i]);
+                }
+
+                if (n) {
+                    uint32_t vp0 = vldr_binary_bits(row0, x, n);
+                    uint32_t vp1 = vldr_binary_bits(row1, x, n);
+                    vstr_binary_bits(row0, x, n, ~(vp0 | vp1));
                 }
             } else {
                 for (; x < x_end; x++) {
@@ -635,19 +612,16 @@ void imlib_b_nor_line_op(int x, int x_end, int y_row, imlib_draw_row_data_t *dat
             uint8_t *row1 = (uint8_t *) data->dst_row_override;
 
             if (!mask) {
-                #if (__ARM_ARCH > 6)
-                for (; (x_end - x) >= 4; x += 4) {
-                    uint32_t p0 = *((uint32_t *) (row0 + x));
-                    uint32_t p1 = *((uint32_t *) (row1 + x));
-                    *((uint32_t *) (row0 + x)) = ~(p0 | p1);
-                }
-                #endif
+                uint32_t n = x_end - x;
 
-                for (; x < x_end; x++) {
-                    uint32_t p0 = IMAGE_GET_GRAYSCALE_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_GRAYSCALE_PIXEL_FAST(row1, x);
-                    uint32_t p = ~(p0 | p1);
-                    IMAGE_PUT_GRAYSCALE_PIXEL_FAST(row0, x, p);
+                for (; n >= UINT8_VECTOR_SIZE; n -= UINT8_VECTOR_SIZE, x += UINT8_VECTOR_SIZE) {
+                    vstr_u8(row0 + x, vmvn_u32(vorr_u32(vldr_u8(row0 + x), vldr_u8(row1 + x))));
+                }
+
+                if (n) {
+                    v128_predicate_t pred = vpredicate_8(n);
+                    v2x_rows_t data = vldr_u8_pred_x2((v2x_row_ptrs_t) {.p0.u8 = row0, .p1.u8 = row1}, x, pred);
+                    vstr_u8_pred(row0 + x, vmvn_u32(vorr_u32(data.r0, data.r1)), pred);
                 }
             } else {
                 for (; x < x_end; x++) {
@@ -666,19 +640,16 @@ void imlib_b_nor_line_op(int x, int x_end, int y_row, imlib_draw_row_data_t *dat
             uint16_t *row1 = (uint16_t *) data->dst_row_override;
 
             if (!mask) {
-                #if (__ARM_ARCH > 6)
-                for (; (x_end - x) >= 2; x += 2) {
-                    uint32_t p0 = *((uint32_t *) (row0 + x));
-                    uint32_t p1 = *((uint32_t *) (row1 + x));
-                    *((uint32_t *) (row0 + x)) = ~(p0 | p1);
-                }
-                #endif
+                uint32_t n = x_end - x;
 
-                for (; x < x_end; x++) {
-                    uint32_t p0 = IMAGE_GET_RGB565_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_RGB565_PIXEL_FAST(row1, x);
-                    uint32_t p = ~(p0 | p1);
-                    IMAGE_PUT_RGB565_PIXEL_FAST(row0, x, p);
+                for (; n >= UINT16_VECTOR_SIZE; n -= UINT16_VECTOR_SIZE, x += UINT16_VECTOR_SIZE) {
+                    vstr_u16(row0 + x, vmvn_u32(vorr_u32(vldr_u16(row0 + x), vldr_u16(row1 + x))));
+                }
+
+                if (n) {
+                    v128_predicate_t pred = vpredicate_16(n);
+                    v2x_rows_t data = vldr_u16_pred_x2((v2x_row_ptrs_t) {.p0.u16 = row0, .p1.u16 = row1}, x, pred);
+                    vstr_u16_pred(row0 + x, vmvn_u32(vorr_u32(data.r0, data.r1)), pred);
                 }
             } else {
                 for (; x < x_end; x++) {
@@ -707,27 +678,34 @@ void imlib_b_xor_line_op(int x, int x_end, int y_row, imlib_draw_row_data_t *dat
             uint32_t *row1 = (uint32_t *) data->dst_row_override;
 
             if (!mask) {
-                #if (__ARM_ARCH > 6)
-                // Align to 32-bit boundary.
-                for (; (x % 32) && (x < x_end); x++) {
-                    uint32_t p0 = IMAGE_GET_BINARY_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_BINARY_PIXEL_FAST(row1, x);
-                    uint32_t p = p0 ^ p1;
-                    IMAGE_PUT_BINARY_PIXEL_FAST(row0, x, p);
+                uint32_t n = x_end - x;
+                uint32_t unaligned = x % UINT32_T_BITS;
+
+                if (unaligned) {
+                    uint32_t unaligned_len = IM_MIN(UINT32_T_BITS - unaligned, n);
+                    uint32_t vp0 = vldr_binary_bits(row0, x, unaligned_len);
+                    uint32_t vp1 = vldr_binary_bits(row1, x, unaligned_len);
+                    vstr_binary_bits(row0, x, unaligned_len, vp0 ^ vp1);
+                    x += unaligned_len;
+                    n -= unaligned_len;
                 }
 
-                for (; (x_end - x) >= 32; x += 32) {
-                    uint32_t p0 = row0[x / 32];
-                    uint32_t p1 = row1[x / 32];
-                    row0[x / 32] = p0 ^ p1;
+                if (UINT32_VECTOR_BITS > UINT32_T_BITS) {
+                    for (uint32_t i = x / UINT32_T_BITS; n >= UINT32_VECTOR_BITS;
+                         n -= UINT32_VECTOR_BITS, x += UINT32_VECTOR_BITS, i += UINT32_VECTOR_SIZE) {
+                        vstr_u32(row0 + i, veor_u32(vldr_u32(row0 + i), vldr_u32(row1 + i)));
+                    }
                 }
-                #endif
 
-                for (; x < x_end; x++) {
-                    uint32_t p0 = IMAGE_GET_BINARY_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_BINARY_PIXEL_FAST(row1, x);
-                    uint32_t p = p0 ^ p1;
-                    IMAGE_PUT_BINARY_PIXEL_FAST(row0, x, p);
+                for (uint32_t i = x / UINT32_T_BITS; n >= UINT32_T_BITS;
+                     n -= UINT32_T_BITS, x += UINT32_T_BITS, i++) {
+                    row0[i] = row0[i] ^ row1[i];
+                }
+
+                if (n) {
+                    uint32_t vp0 = vldr_binary_bits(row0, x, n);
+                    uint32_t vp1 = vldr_binary_bits(row1, x, n);
+                    vstr_binary_bits(row0, x, n, vp0 ^ vp1);
                 }
             } else {
                 for (; x < x_end; x++) {
@@ -746,19 +724,16 @@ void imlib_b_xor_line_op(int x, int x_end, int y_row, imlib_draw_row_data_t *dat
             uint8_t *row1 = (uint8_t *) data->dst_row_override;
 
             if (!mask) {
-                #if (__ARM_ARCH > 6)
-                for (; (x_end - x) >= 4; x += 4) {
-                    uint32_t p0 = *((uint32_t *) (row0 + x));
-                    uint32_t p1 = *((uint32_t *) (row1 + x));
-                    *((uint32_t *) (row0 + x)) = p0 ^ p1;
-                }
-                #endif
+                uint32_t n = x_end - x;
 
-                for (; x < x_end; x++) {
-                    uint32_t p0 = IMAGE_GET_GRAYSCALE_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_GRAYSCALE_PIXEL_FAST(row1, x);
-                    uint32_t p = p0 ^ p1;
-                    IMAGE_PUT_GRAYSCALE_PIXEL_FAST(row0, x, p);
+                for (; n >= UINT8_VECTOR_SIZE; n -= UINT8_VECTOR_SIZE, x += UINT8_VECTOR_SIZE) {
+                    vstr_u8(row0 + x, veor_u32(vldr_u8(row0 + x), vldr_u8(row1 + x)));
+                }
+
+                if (n) {
+                    v128_predicate_t pred = vpredicate_8(n);
+                    v2x_rows_t data = vldr_u8_pred_x2((v2x_row_ptrs_t) {.p0.u8 = row0, .p1.u8 = row1}, x, pred);
+                    vstr_u8_pred(row0 + x, veor_u32(data.r0, data.r1), pred);
                 }
             } else {
                 for (; x < x_end; x++) {
@@ -777,19 +752,16 @@ void imlib_b_xor_line_op(int x, int x_end, int y_row, imlib_draw_row_data_t *dat
             uint16_t *row1 = (uint16_t *) data->dst_row_override;
 
             if (!mask) {
-                #if (__ARM_ARCH > 6)
-                for (; (x_end - x) >= 2; x += 2) {
-                    uint32_t p0 = *((uint32_t *) (row0 + x));
-                    uint32_t p1 = *((uint32_t *) (row1 + x));
-                    *((uint32_t *) (row0 + x)) = p0 ^ p1;
-                }
-                #endif
+                uint32_t n = x_end - x;
 
-                for (; x < x_end; x++) {
-                    uint32_t p0 = IMAGE_GET_RGB565_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_RGB565_PIXEL_FAST(row1, x);
-                    uint32_t p = p0 ^ p1;
-                    IMAGE_PUT_RGB565_PIXEL_FAST(row0, x, p);
+                for (; n >= UINT16_VECTOR_SIZE; n -= UINT16_VECTOR_SIZE, x += UINT16_VECTOR_SIZE) {
+                    vstr_u16(row0 + x, veor_u32(vldr_u16(row0 + x), vldr_u16(row1 + x)));
+                }
+
+                if (n) {
+                    v128_predicate_t pred = vpredicate_16(n);
+                    v2x_rows_t data = vldr_u16_pred_x2((v2x_row_ptrs_t) {.p0.u16 = row0, .p1.u16 = row1}, x, pred);
+                    vstr_u16_pred(row0 + x, veor_u32(data.r0, data.r1), pred);
                 }
             } else {
                 for (; x < x_end; x++) {
@@ -818,27 +790,34 @@ void imlib_b_xnor_line_op(int x, int x_end, int y_row, imlib_draw_row_data_t *da
             uint32_t *row1 = (uint32_t *) data->dst_row_override;
 
             if (!mask) {
-                #if (__ARM_ARCH > 6)
-                // Align to 32-bit boundary.
-                for (; (x % 32) && (x < x_end); x++) {
-                    uint32_t p0 = IMAGE_GET_BINARY_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_BINARY_PIXEL_FAST(row1, x);
-                    uint32_t p = ~(p0 ^ p1);
-                    IMAGE_PUT_BINARY_PIXEL_FAST(row0, x, p);
+                uint32_t n = x_end - x;
+                uint32_t unaligned = x % UINT32_T_BITS;
+
+                if (unaligned) {
+                    uint32_t unaligned_len = IM_MIN(UINT32_T_BITS - unaligned, n);
+                    uint32_t vp0 = vldr_binary_bits(row0, x, unaligned_len);
+                    uint32_t vp1 = vldr_binary_bits(row1, x, unaligned_len);
+                    vstr_binary_bits(row0, x, unaligned_len, ~(vp0 ^ vp1));
+                    x += unaligned_len;
+                    n -= unaligned_len;
                 }
 
-                for (; (x_end - x) >= 32; x += 32) {
-                    uint32_t p0 = row0[x / 32];
-                    uint32_t p1 = row1[x / 32];
-                    row0[x / 32] = ~(p0 ^ p1);
+                if (UINT32_VECTOR_BITS > UINT32_T_BITS) {
+                    for (uint32_t i = x / UINT32_T_BITS; n >= UINT32_VECTOR_BITS;
+                         n -= UINT32_VECTOR_BITS, x += UINT32_VECTOR_BITS, i += UINT32_VECTOR_SIZE) {
+                        vstr_u32(row0 + i, vmvn_u32(veor_u32(vldr_u32(row0 + i), vldr_u32(row1 + i))));
+                    }
                 }
-                #endif
 
-                for (; x < x_end; x++) {
-                    uint32_t p0 = IMAGE_GET_BINARY_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_BINARY_PIXEL_FAST(row1, x);
-                    uint32_t p = ~(p0 ^ p1);
-                    IMAGE_PUT_BINARY_PIXEL_FAST(row0, x, p);
+                for (uint32_t i = x / UINT32_T_BITS; n >= UINT32_T_BITS;
+                     n -= UINT32_T_BITS, x += UINT32_T_BITS, i++) {
+                    row0[i] = ~(row0[i] ^ row1[i]);
+                }
+
+                if (n) {
+                    uint32_t vp0 = vldr_binary_bits(row0, x, n);
+                    uint32_t vp1 = vldr_binary_bits(row1, x, n);
+                    vstr_binary_bits(row0, x, n, ~(vp0 ^ vp1));
                 }
             } else {
                 for (; x < x_end; x++) {
@@ -857,19 +836,16 @@ void imlib_b_xnor_line_op(int x, int x_end, int y_row, imlib_draw_row_data_t *da
             uint8_t *row1 = (uint8_t *) data->dst_row_override;
 
             if (!mask) {
-                #if (__ARM_ARCH > 6)
-                for (; (x_end - x) >= 4; x += 4) {
-                    uint32_t p0 = *((uint32_t *) (row0 + x));
-                    uint32_t p1 = *((uint32_t *) (row1 + x));
-                    *((uint32_t *) (row0 + x)) = ~(p0 ^ p1);
-                }
-                #endif
+                uint32_t n = x_end - x;
 
-                for (; x < x_end; x++) {
-                    uint32_t p0 = IMAGE_GET_GRAYSCALE_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_GRAYSCALE_PIXEL_FAST(row1, x);
-                    uint32_t p = ~(p0 ^ p1);
-                    IMAGE_PUT_GRAYSCALE_PIXEL_FAST(row0, x, p);
+                for (; n >= UINT8_VECTOR_SIZE; n -= UINT8_VECTOR_SIZE, x += UINT8_VECTOR_SIZE) {
+                    vstr_u8(row0 + x, vmvn_u32(veor_u32(vldr_u8(row0 + x), vldr_u8(row1 + x))));
+                }
+
+                if (n) {
+                    v128_predicate_t pred = vpredicate_8(n);
+                    v2x_rows_t data = vldr_u8_pred_x2((v2x_row_ptrs_t) {.p0.u8 = row0, .p1.u8 = row1}, x, pred);
+                    vstr_u8_pred(row0 + x, vmvn_u32(veor_u32(data.r0, data.r1)), pred);
                 }
             } else {
                 for (; x < x_end; x++) {
@@ -888,19 +864,16 @@ void imlib_b_xnor_line_op(int x, int x_end, int y_row, imlib_draw_row_data_t *da
             uint16_t *row1 = (uint16_t *) data->dst_row_override;
 
             if (!mask) {
-                #if (__ARM_ARCH > 6)
-                for (; (x_end - x) >= 2; x += 2) {
-                    uint32_t p0 = *((uint32_t *) (row0 + x));
-                    uint32_t p1 = *((uint32_t *) (row1 + x));
-                    *((uint32_t *) (row0 + x)) = ~(p0 ^ p1);
-                }
-                #endif
+                uint32_t n = x_end - x;
 
-                for (; x < x_end; x++) {
-                    uint32_t p0 = IMAGE_GET_RGB565_PIXEL_FAST(row0, x);
-                    uint32_t p1 = IMAGE_GET_RGB565_PIXEL_FAST(row1, x);
-                    uint32_t p = ~(p0 ^ p1);
-                    IMAGE_PUT_RGB565_PIXEL_FAST(row0, x, p);
+                for (; n >= UINT16_VECTOR_SIZE; n -= UINT16_VECTOR_SIZE, x += UINT16_VECTOR_SIZE) {
+                    vstr_u16(row0 + x, vmvn_u32(veor_u32(vldr_u16(row0 + x), vldr_u16(row1 + x))));
+                }
+
+                if (n) {
+                    v128_predicate_t pred = vpredicate_16(n);
+                    v2x_rows_t data = vldr_u16_pred_x2((v2x_row_ptrs_t) {.p0.u16 = row0, .p1.u16 = row1}, x, pred);
+                    vstr_u16_pred(row0 + x, vmvn_u32(veor_u32(data.r0, data.r1)), pred);
                 }
             } else {
                 for (; x < x_end; x++) {
