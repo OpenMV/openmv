@@ -36,7 +36,7 @@ typedef struct gvec {
 } gvec_t;
 
 void imlib_edge_simple(image_t *src, rectangle_t *roi, int low_thresh, int high_thresh) {
-    imlib_morph(src, 1, kernel_high_pass_3, 1.0f, 0.0f, false, 0, false, NULL);
+    imlib_morph(src, 1, kernel_high_pass_3, 1, false, 0, false, NULL);
     list_t thresholds;
     list_init(&thresholds, sizeof(color_thresholds_list_lnk_data_t));
     color_thresholds_list_lnk_data_t lnk_data;
