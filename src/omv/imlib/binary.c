@@ -921,299 +921,272 @@ void imlib_b_xnor_line_op(int x, int x_end, int y_row, imlib_draw_row_data_t *da
 }
 
 static void imlib_erode_dilate(image_t *img, int ksize, int threshold, int e_or_d, image_t *mask) {
-    int brows = ksize + 1;
+    int32_t brows = ksize + 1;
     image_t buf;
     buf.w = img->w;
     buf.h = brows;
     buf.pixfmt = img->pixfmt;
+    int32_t sum = imlib_ksize_to_n(ksize);
 
     switch (img->pixfmt) {
         case PIXFORMAT_BINARY: {
-            buf.data = fb_alloc(IMAGE_BINARY_LINE_LEN_BYTES(img) * brows, FB_ALLOC_NO_HINT);
+            buf.data = fb_alloc(IMAGE_BINARY_LINE_LEN_BYTES(img) * brows, FB_ALLOC_PREFER_SPEED);
+            int32_t out = e_or_d ? COLOR_BINARY_MAX : COLOR_BINARY_MIN;
 
-            for (int y = 0; y < img->h; y++) {
+            for (int32_t y = 0; y < img->h; y++) {
                 uint32_t *row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(img, y);
                 uint32_t *buf_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&buf, (y % brows));
-                int acc = 0;
+                int32_t acc = 0;
 
-                for (int x = 0; x < img->w; x++) {
-                    int pixel = IMAGE_GET_BINARY_PIXEL_FAST(row_ptr, x);
-                    IMAGE_PUT_BINARY_PIXEL_FAST(buf_row_ptr, x, pixel);
-
+                for (int32_t x = 0; x < img->w; x++) {
                     if (mask && (!image_get_mask_pixel(mask, x, y))) {
+                        int32_t p = IMAGE_GET_BINARY_PIXEL_FAST(row_ptr, x);
+                        IMAGE_PUT_BINARY_PIXEL_FAST(buf_row_ptr, x, p);
                         continue; // Short circuit.
                     }
 
                     if (!mask && x > ksize && x < img->w - ksize && y >= ksize && y < img->h - ksize) {
-                        // faster
-                        for (int j = -ksize; j <= ksize; j++) {
+                        for (int32_t j = -ksize; j <= ksize; j++) {
                             uint32_t *k_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(img, y + j);
                             // subtract old left column and add new right column
                             acc -= IMAGE_GET_BINARY_PIXEL_FAST(k_row_ptr, x - ksize - 1);
                             acc += IMAGE_GET_BINARY_PIXEL_FAST(k_row_ptr, x + ksize);
                         }
                     } else {
-                        // slower (checks boundaries per pixel)
                         acc = e_or_d ? 0 : -1; // Don't count center pixel...
-                        for (int j = -ksize; j <= ksize; j++) {
-                            int y_j = IM_CLAMP(y + j, 0, (img->h - 1));
+                        for (int32_t j = -ksize; j <= ksize; j++) {
+                            int32_t y_j = IM_CLAMP(y + j, 0, (img->h - 1));
                             uint32_t *k_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(img, y_j);
 
-                            for (int k = -ksize; k <= ksize; k++) {
-                                int x_k = IM_CLAMP(x + k, 0, (img->w - 1));
+                            for (int32_t k = -ksize; k <= ksize; k++) {
+                                int32_t x_k = IM_CLAMP(x + k, 0, (img->w - 1));
                                 acc += IMAGE_GET_BINARY_PIXEL_FAST(k_row_ptr, x_k);
                             }
                         }
                     }
 
-                    if (!e_or_d) {
-                        // Preserve original pixel value... or clear it.
-                        if (acc < threshold) {
-                            IMAGE_CLEAR_BINARY_PIXEL_FAST(buf_row_ptr, x);
-                        }
-                    } else {
-                        // Preserve original pixel value... or set it.
-                        if (acc > threshold) {
-                            IMAGE_SET_BINARY_PIXEL_FAST(buf_row_ptr, x);
-                        }
-                    }
+                    int32_t old_pixel = IMAGE_GET_BINARY_PIXEL_FAST(row_ptr, x);
+                    int32_t v0 = e_or_d ? threshold : acc;
+                    int32_t v1 = e_or_d ? acc : threshold;
+                    int32_t pixel = (v0 >= v1) ? old_pixel : out;
+                    IMAGE_PUT_BINARY_PIXEL_FAST(buf_row_ptr, x, pixel);
                 }
 
-                if (y >= ksize) {
-                    // Transfer buffer lines...
-                    memcpy(IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(img, (y - ksize)),
-                           IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&buf, ((y - ksize) % brows)),
-                           IMAGE_BINARY_LINE_LEN_BYTES(img));
-                }
+                linebuf_copy_binary(y, ksize, brows, &buf, img);
             }
 
-            // Copy any remaining lines from the buffer image...
-            for (int y = IM_MAX(img->h - ksize, 0); y < img->h; y++) {
-                memcpy(IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(img, y),
-                       IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&buf, (y % brows)),
-                       IMAGE_BINARY_LINE_LEN_BYTES(img));
-            }
-
+            linebuf_copy_binary_tail(ksize, brows, &buf, img);
             fb_free();
             break;
         }
         case PIXFORMAT_GRAYSCALE: {
-            buf.data = fb_alloc(IMAGE_GRAYSCALE_LINE_LEN_BYTES(img) * brows, FB_ALLOC_NO_HINT);
+            buf.data = fb_alloc(IMAGE_GRAYSCALE_LINE_LEN_BYTES(img) * brows, FB_ALLOC_PREFER_SPEED);
+            // Usage of singed math in the loop doesn't matter as the final compare is unsigned.
+            bool u8_overflow = sum > UINT8_MAX;
+            int32_t out = e_or_d ? COLOR_GRAYSCALE_BINARY_MAX : COLOR_GRAYSCALE_BINARY_MIN;
+            v128_t vthreshold = vdup_u8(threshold);
+            v128_t vout = vdup_u8(out);
 
-            #if defined(ARM_MATH_DSP)
-            int32_t threshold_x4 = __USAT(threshold, 7) * 0x01010101;
-            uint32_t e_or_d_mask_x4 = e_or_d ? 0xFFFFFFFF : 0x00000000;
-            #endif
-
-            for (int y = 0; y < img->h; y++) {
+            for (int32_t y = 0; y < img->h; y++) {
                 uint8_t *row_ptr = IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(img, y);
                 uint8_t *buf_row_ptr = IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(&buf, (y % brows));
-                int acc = 0;
+                int32_t acc = 0;
 
-                for (int x = 0; x < img->w; x++) {
-                    int pixel = IMAGE_GET_GRAYSCALE_PIXEL_FAST(row_ptr, x);
-                    IMAGE_PUT_GRAYSCALE_PIXEL_FAST(buf_row_ptr, x, pixel);
-
+                for (int32_t x = 0; x < img->w; x++) {
                     if (mask && (!image_get_mask_pixel(mask, x, y))) {
+                        int32_t p = IMAGE_GET_GRAYSCALE_PIXEL_FAST(row_ptr, x);
+                        IMAGE_PUT_GRAYSCALE_PIXEL_FAST(buf_row_ptr, x, p);
                         continue; // Short circuit.
                     }
 
                     if (!mask && x > ksize && x < img->w - ksize && y >= ksize && y < img->h - ksize) {
-                        if (0) {
-                        #if defined(ARM_MATH_DSP)
-                            // acc will never be larger than 121 (<= 127) for ksize <= 5.
-                        } else if ((x < img->w - ksize - 3) && (ksize <= 5)) {
-                            int32_t acc_x4 = acc & 0xFF;
+                        int32_t remaining = (img->w - ksize) - x;
+                        if ((!u8_overflow) && (remaining >= vpredicate_8_maybe_min_elements())) {
+                            for (;;) {
+                                v128_predicate_t pred = vpredicate_8_maybe(remaining);
+                                v128_t vacc = vset_u8(vdup_u8(0), 0, acc);
 
-                            for (int j = -ksize; j <= ksize; j++) {
-                                uint8_t *k_row_ptr = IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(img, y + j);
-                                // subtract old left edge 4x
-                                __USUB8(*((uint32_t *) (k_row_ptr + x - ksize - 1)), 0x01010101);
-                                acc_x4 = __SSUB8(acc_x4, __SEL(0x01010101, 0));
-                                // add new right edge to sum 4x
-                                __USUB8(*((uint32_t *) (k_row_ptr + x + ksize)), 0x01010101);
-                                acc_x4 = __SADD8(acc_x4, __SEL(0x01010101, 0));
+                                for (int32_t j = -ksize; j <= ksize; j++) {
+                                    uint8_t *k_row_ptr = IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(img, y + j) + x;
+                                    // subtract old left edge from sum
+                                    v128_t sub_pixels = vldr_u8_pred(k_row_ptr - ksize - 1, pred);
+                                    sub_pixels = vcmpgesel_u8(sub_pixels, vdup_u8(1), vdup_u8(1), vdup_u8(0));
+                                    vacc = vsub_s8(vacc, sub_pixels);
+                                    // add new right edge to sum
+                                    v128_t add_pixels = vldr_u8_pred(k_row_ptr + ksize, pred);
+                                    add_pixels = vcmpgesel_u8(add_pixels, vdup_u8(1), vdup_u8(1), vdup_u8(0));
+                                    vacc = vadd_s8(vacc, add_pixels);
+                                }
+
+                                // After the loop the lowest 8-bits contain a valid acc value. We
+                                // compute the next acc values by adding the sums up.
+
+                                vacc = vsum_up_s8(vacc);
+
+                                // Extract final acc value for the next pass.
+
+                                acc = vget_s8(vacc, INT8_VECTOR_SIZE - 1);
+
+                                // Compute all erode/dilate thresholds at once.
+
+                                v128_t old_pixels = vldr_u8_pred(row_ptr + x, pred);
+                                v128_t v0 = e_or_d ? vthreshold : vacc;
+                                v128_t v1 = e_or_d ? vacc : vthreshold;
+                                v128_t pixels = vcmpgesel_u8(v0, v1, old_pixels, vout);
+
+                                vstr_u8_pred(buf_row_ptr + x, pixels, pred);
+                                uint32_t inc = vpredicate_8_get_n(pred);
+                                remaining -= inc;
+
+                                if (remaining < vpredicate_8_maybe_min_elements()) {
+                                    x += inc - 1;
+                                    break;
+                                }
+
+                                x += inc;
                             }
 
-                            // After the loop the lowest 8-bits contain a valid acc value. We
-                            // compute the next 3 acc values by adding the sums up.
-
-                            acc_x4 = __SADD8(acc_x4, acc_x4 << 8);
-                            acc_x4 = __SADD8(acc_x4, acc_x4 << 16);
-                            acc = acc_x4 >> 24;
-
-                            // Compute all erode/dilate thresholds at once.
-
-                            uint32_t pixel_x4 = *((uint32_t *) (row_ptr + x));
-                            __SSUB8(e_or_d ? threshold_x4 : acc_x4, e_or_d ? acc_x4 : threshold_x4);
-                            *((uint32_t *) (buf_row_ptr + x)) = __SEL(pixel_x4, e_or_d_mask_x4);
-
-                            x += 3;
                             continue;
-                        #endif
                         } else {
-                            // faster
-                            for (int j = -ksize; j <= ksize; j++) {
-                                uint8_t *k_row_ptr = IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(img, y + j);
+                            for (int32_t j = -ksize; j <= ksize; j++) {
+                                uint8_t *k_row_ptr = IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(img, y + j) + x;
                                 // subtract old left edge and add new right edge to sum
-                                acc -= (IMAGE_GET_GRAYSCALE_PIXEL_FAST(k_row_ptr, x - ksize - 1) > 0);
-                                acc += (IMAGE_GET_GRAYSCALE_PIXEL_FAST(k_row_ptr, x + ksize) > 0);
+                                acc -= IMAGE_GET_GRAYSCALE_PIXEL_FAST(k_row_ptr, -ksize - 1) > 0;
+                                acc += IMAGE_GET_GRAYSCALE_PIXEL_FAST(k_row_ptr, ksize) > 0;
                             }
                         }
                     } else {
-                        // slower way which checks boundaries per pixel
                         acc = e_or_d ? 0 : -1; // Don't count center pixel...
-                        for (int j = -ksize; j <= ksize; j++) {
-                            int y_j = IM_CLAMP(y + j, 0, (img->h - 1));
+                        for (int32_t j = -ksize; j <= ksize; j++) {
+                            int32_t y_j = IM_CLAMP(y + j, 0, (img->h - 1));
                             uint8_t *k_row_ptr = IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(img, y_j);
 
-                            for (int k = -ksize; k <= ksize; k++) {
-                                int x_k = IM_CLAMP(x + k, 0, (img->w - 1));
+                            for (int32_t k = -ksize; k <= ksize; k++) {
+                                int32_t x_k = IM_CLAMP(x + k, 0, (img->w - 1));
                                 acc += IMAGE_GET_GRAYSCALE_PIXEL_FAST(k_row_ptr, x_k) > 0;
                             }
                         }
                     }
 
-                    if (!e_or_d) {
-                        // Preserve original pixel value... or clear it.
-                        if (acc < threshold) {
-                            IMAGE_PUT_GRAYSCALE_PIXEL_FAST(buf_row_ptr, x, COLOR_GRAYSCALE_BINARY_MIN);
-                        }
-                    } else {
-                        // Preserve original pixel value... or set it.
-                        if (acc > threshold) {
-                            IMAGE_PUT_GRAYSCALE_PIXEL_FAST(buf_row_ptr, x, COLOR_GRAYSCALE_BINARY_MAX);
-                        }
-                    }
+                    int32_t old_pixel = IMAGE_GET_GRAYSCALE_PIXEL_FAST(row_ptr, x);
+                    int32_t v0 = e_or_d ? threshold : acc;
+                    int32_t v1 = e_or_d ? acc : threshold;
+                    int32_t pixel = (v0 >= v1) ? old_pixel : out;
+                    IMAGE_PUT_GRAYSCALE_PIXEL_FAST(buf_row_ptr, x, pixel);
                 }
 
-                if (y >= ksize) {
-                    // Transfer buffer lines...
-                    memcpy(IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(img, (y - ksize)),
-                           IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(&buf, ((y - ksize) % brows)),
-                           IMAGE_GRAYSCALE_LINE_LEN_BYTES(img));
-                }
+                linebuf_copy_grayscale(y, ksize, brows, &buf, img);
             }
 
-            // Copy any remaining lines from the buffer image...
-            for (int y = IM_MAX(img->h - ksize, 0); y < img->h; y++) {
-                memcpy(IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(img, y),
-                       IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(&buf, (y % brows)),
-                       IMAGE_GRAYSCALE_LINE_LEN_BYTES(img));
-            }
-
+            linebuf_copy_grayscale_tail(ksize, brows, &buf, img);
             fb_free();
             break;
         }
         case PIXFORMAT_RGB565: {
-            buf.data = fb_alloc(IMAGE_RGB565_LINE_LEN_BYTES(img) * brows, FB_ALLOC_NO_HINT);
+            buf.data = fb_alloc(IMAGE_RGB565_LINE_LEN_BYTES(img) * brows, FB_ALLOC_PREFER_SPEED);
+            // Usage of singed math in the loop doesn't matter as the final compare is unsigned.
+            bool u16_overflow = sum > UINT16_MAX;
+            int32_t out = e_or_d ? COLOR_RGB565_BINARY_MAX : COLOR_RGB565_BINARY_MIN;
+            v128_t vthreshold = vdup_u16(threshold);
+            v128_t vout = vdup_u16(out);
 
-            #if defined(ARM_MATH_DSP)
-            int32_t threshold_x2 = __USAT(threshold, 15) * 0x00010001;
-            uint32_t e_or_d_mask_x2 = e_or_d ? 0xFFFFFFFF : 0x00000000;
-            #endif
-
-            for (int y = 0; y < img->h; y++) {
+            for (int32_t y = 0; y < img->h; y++) {
                 uint16_t *row_ptr = IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(img, y);
                 uint16_t *buf_row_ptr = IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(&buf, (y % brows));
-                int acc = 0;
+                int32_t acc = 0;
 
-                for (int x = 0; x < img->w; x++) {
-                    int pixel = IMAGE_GET_RGB565_PIXEL_FAST(row_ptr, x);
-                    IMAGE_PUT_RGB565_PIXEL_FAST(buf_row_ptr, x, pixel);
-
+                for (int32_t x = 0; x < img->w; x++) {
                     if (mask && (!image_get_mask_pixel(mask, x, y))) {
+                        int32_t p = IMAGE_GET_RGB565_PIXEL_FAST(row_ptr, x);
+                        IMAGE_PUT_RGB565_PIXEL_FAST(buf_row_ptr, x, p);
                         continue; // Short circuit.
                     }
 
                     if (!mask && x > ksize && x < img->w - ksize && y >= ksize && y < img->h - ksize) {
-                        if (0) {
-                        #if defined(ARM_MATH_DSP)
-                            // acc will never be larger than 32,761 (<= 32767) for ksize <= 90.
-                        } else if ((x < img->w - ksize - 1) && (ksize <= 90)) {
-                            int32_t acc_x2 = acc & 0xFFFF;
+                        int32_t remaining = (img->w - ksize) - x;
+                        if ((!u16_overflow) && (remaining >= vpredicate_16_maybe_min_elements())) {
+                            for (;;) {
+                                v128_predicate_t pred = vpredicate_16_maybe(remaining);
+                                v128_t vacc = vset_u16(vdup_u16(0), 0, acc);
 
-                            for (int j = -ksize; j <= ksize; j++) {
-                                uint16_t *k_row_ptr = IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(img, y + j);
-                                // subtract old left edge 2x
-                                __USUB16(*((uint32_t *) (k_row_ptr + x - ksize - 1)), 0x00010001);
-                                acc_x2 = __SSUB16(acc_x2, __SEL(0x00010001, 0));
-                                // add new right edge to sum 2x
-                                __USUB16(*((uint32_t *) (k_row_ptr + x + ksize)), 0x00010001);
-                                acc_x2 = __SADD16(acc_x2, __SEL(0x00010001, 0));
+                                for (int32_t j = -ksize; j <= ksize; j++) {
+                                    uint16_t *k_row_ptr = IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(img, y + j) + x;
+                                    // subtract old left edge from sum
+                                    v128_t sub_pixels = vldr_u16_pred(k_row_ptr - ksize - 1, pred);
+                                    sub_pixels = vcmpgesel_u16(sub_pixels, vdup_u16(1), vdup_u16(1), vdup_u16(0));
+                                    vacc = vsub_s16(vacc, sub_pixels);
+                                    // add new right edge to sum
+                                    v128_t add_pixels = vldr_u16_pred(k_row_ptr + ksize, pred);
+                                    add_pixels = vcmpgesel_u16(add_pixels, vdup_u16(1), vdup_u16(1), vdup_u16(0));
+                                    vacc = vadd_s16(vacc, add_pixels);
+                                }
+
+                                // After the loop the lowest 16-bits contain a valid acc value. We
+                                // compute the next acc values by adding the sums up.
+
+                                vacc = vsum_up_s16(vacc);
+
+                                // Extract final acc value for the next pass.
+
+                                acc = vget_s16(vacc, INT16_VECTOR_SIZE - 1);
+
+                                // Compute all erode/dilate thresholds at once.
+
+                                v128_t old_pixels = vldr_u16_pred(row_ptr + x, pred);
+                                v128_t v0 = e_or_d ? vthreshold : vacc;
+                                v128_t v1 = e_or_d ? vacc : vthreshold;
+                                v128_t pixels = vcmpgesel_u16(v0, v1, old_pixels, vout);
+
+                                vstr_u16_pred(buf_row_ptr + x, pixels, pred);
+                                uint32_t inc = vpredicate_16_get_n(pred);
+                                remaining -= inc;
+
+                                if (remaining < vpredicate_16_maybe_min_elements()) {
+                                    x += inc - 1;
+                                    break;
+                                }
+
+                                x += inc;
                             }
 
-                            // After the loop the lowest 16-bits contain a valid acc value. We
-                            // compute the next acc value by adding the sums up.
-
-                            acc_x2 = __SADD16(acc_x2, acc_x2 << 16);
-                            acc = acc_x2 >> 16;
-
-                            // Compute all erode/dilate thresholds at once.
-
-                            uint32_t pixel_x2 = *((uint32_t *) (row_ptr + x));
-                            __SSUB16(e_or_d ? threshold_x2 : acc_x2, e_or_d ? acc_x2 : threshold_x2);
-                            *((uint32_t *) (buf_row_ptr + x)) = __SEL(pixel_x2, e_or_d_mask_x2);
-
-                            x += 1;
                             continue;
-                        #endif
                         } else {
-                            // faster
-                            for (int j = -ksize; j <= ksize; j++) {
-                                uint16_t *k_row_ptr = IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(img, y + j);
+                            for (int32_t j = -ksize; j <= ksize; j++) {
+                                uint16_t *k_row_ptr = IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(img, y + j) + x;
                                 // subtract old left column and add new right column
-                                acc -= IMAGE_GET_RGB565_PIXEL_FAST(k_row_ptr, x - ksize - 1) > 0;
-                                acc += IMAGE_GET_RGB565_PIXEL_FAST(k_row_ptr, x + ksize) > 0;
+                                acc -= IMAGE_GET_RGB565_PIXEL_FAST(k_row_ptr, -ksize - 1) > 0;
+                                acc += IMAGE_GET_RGB565_PIXEL_FAST(k_row_ptr, ksize) > 0;
                             }
                         }
                     } else {
-                        // need to check boundary conditions for each pixel
                         acc = e_or_d ? 0 : -1; // Don't count center pixel...
-                        for (int j = -ksize; j <= ksize; j++) {
-                            int y_j = IM_CLAMP(y + j, 0, (img->h - 1));
+                        for (int32_t j = -ksize; j <= ksize; j++) {
+                            int32_t y_j = IM_CLAMP(y + j, 0, (img->h - 1));
                             uint16_t *k_row_ptr = IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(img, y_j);
 
-                            for (int k = -ksize; k <= ksize; k++) {
-                                int x_k = IM_CLAMP(x + k, 0, (img->w - 1));
+                            for (int32_t k = -ksize; k <= ksize; k++) {
+                                int32_t x_k = IM_CLAMP(x + k, 0, (img->w - 1));
                                 acc += IMAGE_GET_RGB565_PIXEL_FAST(k_row_ptr, x_k) > 0;
                             }
                         }
                     }
 
-                    if (!e_or_d) {
-                        // Preserve original pixel value... or clear it.
-                        if (acc < threshold) {
-                            IMAGE_PUT_RGB565_PIXEL_FAST(buf_row_ptr, x, COLOR_RGB565_BINARY_MIN);
-                        }
-                    } else {
-                        // Preserve original pixel value... or set it.
-                        if (acc > threshold) {
-                            IMAGE_PUT_RGB565_PIXEL_FAST(buf_row_ptr, x, COLOR_RGB565_BINARY_MAX);
-                        }
-                    }
+                    int32_t old_pixel = IMAGE_GET_RGB565_PIXEL_FAST(row_ptr, x);
+                    int32_t v0 = e_or_d ? threshold : acc;
+                    int32_t v1 = e_or_d ? acc : threshold;
+                    int32_t pixel = (v0 >= v1) ? old_pixel : out;
+                    IMAGE_PUT_RGB565_PIXEL_FAST(buf_row_ptr, x, pixel);
                 }
 
-                if (y >= ksize) {
-                    // Transfer buffer lines...
-                    memcpy(IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(img, (y - ksize)),
-                           IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(&buf, ((y - ksize) % brows)),
-                           IMAGE_RGB565_LINE_LEN_BYTES(img));
-                }
+                linebuf_copy_rgb565(y, ksize, brows, &buf, img);
             }
 
-            // Copy any remaining lines from the buffer image...
-            for (int y = IM_MAX(img->h - ksize, 0); y < img->h; y++) {
-                memcpy(IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(img, y),
-                       IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(&buf, (y % brows)),
-                       IMAGE_RGB565_LINE_LEN_BYTES(img));
-            }
-
+            linebuf_copy_rgb565_tail(ksize, brows, &buf, img);
             fb_free();
             break;
         }
         default: {
-            break;
+            __builtin_unreachable();
         }
     }
 }
