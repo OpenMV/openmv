@@ -89,9 +89,17 @@
 #define SENSOR_OPMODE_SUSPEND       (0x85)
 #define SENSOR_TRIGGER_FRAMENUM     (0x002E)
 #define SENSOR_TRIGGER_EN           (0x002F)
+#define SENSOR_TRIGGER_EN_FLAG      (0x01)
+#define SENSOR_TRIGGER_MODE_SOFT    (0x00)
+#define SENSOR_TRIGGER_MODE_GPIO0   (0x10)
+#define SENSOR_TRIGGER_MODE_GPIO1   (0x20)
+#define SENSOR_TRIGGER_MODE_GPIO2   (0x30)
 #define SENSOR_TG_EN                (0x0030)
 #define SENSOR_TG_EN_FLAG           (0x01)
 #define SENSOR_TRIGGER_MODE         (0x0031)
+#define SENSOR_TRIGGER_MODE_EN      (0x01)
+#define SENSOR_TRIGGER_MODE_0       (0x00)
+#define SENSOR_TRIGGER_MODE_1       (0x02)
 #define SENSOR_SOFTWARE_TRIGGER     (0x00EA)
 #define ISP_EN_H                    (0x0800)
 #define ISP_EN_H_EN                 (0x01)
@@ -675,6 +683,42 @@ static int ioctl(omv_csi_t *csi, int request, va_list ap) {
     (void) read_reg_seq;
 
     switch (request) {
+        case OMV_CSI_IOCTL_SET_TRIGGERED_MODE: {
+            int enable = va_arg(ap, int);
+            if (enable) {
+                ret |= omv_i2c_writeb2(&csi->i2c_bus, csi->slv_addr, SENSOR_OPMODE, SENSOR_OPMODE_SUSPEND);
+                ret |= omv_i2c_writeb2(&csi->i2c_bus, csi->slv_addr, SENSOR_TG_EN, 0);
+                ret |= omv_i2c_writeb2(&csi->i2c_bus, csi->slv_addr, SENSOR_TRIGGER_EN, SENSOR_TRIGGER_EN_FLAG);
+                ret |= omv_i2c_writeb2(&csi->i2c_bus, csi->slv_addr, SENSOR_TRIGGER_MODE,
+                                       SENSOR_TRIGGER_MODE_EN | SENSOR_TRIGGER_MODE_1);
+                ret |= omv_i2c_writeb2(&csi->i2c_bus, csi->slv_addr, SENSOR_OPMODE, SENSOR_OPMODE_RUN);
+                // Hardware trigger mode (GPIO1), otherwise trigger from software via I2C.
+                #if defined(OMV_CSI_FSYNC_PIN)
+                ret |= omv_i2c_writeb2(&csi->i2c_bus, csi->slv_addr, SENSOR_TRIGGER_EN,
+                                       SENSOR_TRIGGER_EN_FLAG | SENSOR_TRIGGER_MODE_GPIO1);
+                #endif
+            } else {
+                ret |= omv_i2c_writeb2(&csi->i2c_bus, csi->slv_addr, SENSOR_OPMODE, SENSOR_OPMODE_SUSPEND);
+                ret |= omv_i2c_writeb2(&csi->i2c_bus, csi->slv_addr, SENSOR_TG_EN, SENSOR_TRIGGER_EN_FLAG);
+                ret |= omv_i2c_writeb2(&csi->i2c_bus, csi->slv_addr, SENSOR_TRIGGER_EN, 0);
+                ret |= omv_i2c_writeb2(&csi->i2c_bus, csi->slv_addr, SENSOR_TRIGGER_MODE, 0);
+                ret |= omv_i2c_writeb2(&csi->i2c_bus, csi->slv_addr, SENSOR_OPMODE, SENSOR_OPMODE_RUN);
+            }
+            // Skip past the first corrupt frames...
+            if (!csi->disable_delays) {
+                mp_hal_delay_ms(100);
+            }
+            break;
+        }
+        case OMV_CSI_IOCTL_GET_TRIGGERED_MODE: {
+            int *enable = va_arg(ap, int *);
+            uint8_t reg;
+            ret |= omv_i2c_readb2(&csi->i2c_bus, csi->slv_addr, SENSOR_TG_EN, &reg);
+            if (ret >= 0) {
+                *enable = (reg & SENSOR_TRIGGER_EN_FLAG) ? 0 : 1;
+            }
+            break;
+        }
         case OMV_CSI_IOCTL_GET_RGB_STATS: {
             uint32_t rgb_stats[4];
             uint8_t buf[] = {(RGB_STAT_B_VS >> 8), RGB_STAT_B_VS & 0xFF };
@@ -701,6 +745,7 @@ int pag7936_init(omv_csi_t *csi) {
     csi->vsync_pol = 0;
     csi->hsync_pol = 0;
     csi->pixck_pol = 1;
+    csi->frame_sync = 1;
     csi->mono_bpp = 1;
     csi->raw_output = 1;
     csi->cfa_format = SUBFORMAT_ID_BGGR;
