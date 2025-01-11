@@ -49,10 +49,10 @@ class MicroSpeech:
     def __init__(self, preprocessor=None, micro_speech=None, labels=None, **kwargs):
         self.preprocessor = preprocessor
         if preprocessor is None:
-            self.preprocessor = Model("audio_preprocessor")
+            self.preprocessor = Model("/rom/audio_preprocessor.tflite")
         self.labels, self.micro_speech = (labels, micro_speech)
         if micro_speech is None:
-            self.micro_speech = Model("micro_speech")
+            self.micro_speech = Model("/rom/micro_speech.tflite")
             self.labels = self.micro_speech.labels
         # 16 samples/1ms
         self.audio_buffer = np.zeros((1, _SAMPLES_PER_STEP * 3), dtype=np.int16)

@@ -110,6 +110,12 @@ sys.path.append("/flash")
 sys.path.append("/flash/lib")
 
 try:
+    vfs.mount(vfs.VfsRom(vfs.rom_ioctl(1)), "/rom")
+    sys.path.append("/rom")
+except Exception:
+    pass
+
+try:
     os.stat("SKIPSD")
     sdcard = None  # Skip SD mount
 except Exception:

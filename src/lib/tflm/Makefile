@@ -6,16 +6,10 @@
 # This work is licensed under the MIT license, see the file LICENSE for details.
 #
 # TFLM Makefile
-override CFLAGS := $(CFLAGS) -Wno-unused-variable
-GENERATED_H := $(BUILD)/tflm_builtin_models.h
-GENERATED_C := $(BUILD)/tflm_builtin_models.c
-
-HDR_OBJS = $(BUILD)/tflm_builtin_models.o
 LIB_OBJS = $(BUILD)/tflm_backend.o
-OBJ_DIRS = $(sort $(dir $(HDR_OBJS)))
-ifeq ($(strip $(VELA_ARGS)),)
-override VELA_ARGS := ""
-endif
+OBJ_DIRS = $(sort $(dir $(LIB_OBJS)))
+
+override CFLAGS := $(CFLAGS) -Wno-unused-variable
 
 # Extra module flags.
 CXXFLAGS += $(filter-out -std=gnu99,$(CFLAGS)) \
@@ -45,23 +39,10 @@ ifeq ($(MICROPY_PY_CUBEAI), 1)
 SRC_USERMOD += $(OMV_MOD_DIR)/../../stm32cubeai/py_st_nn.c
 endif
 
-all: | headers $(LIB_OBJS)
-headers: | $(OBJ_DIRS) $(HDR_OBJS)
+all: $(LIB_OBJS) | $(OBJ_DIRS)
 
 $(OBJ_DIRS):
 	$(MKDIR) -p $@
-
-$(GENERATED_H): $(wildcard models/*)
-	$(ECHO) "GEN $(shell realpath --relative-to=pwd $@)"
-	$(PYTHON) $(TOOLS)/$(TFLITE2C) --input models --build-dir ${BUILD} \
-                                   --header > $(BUILD)/tflm_builtin_models.h
-
-$(GENERATED_C): $(wildcard models/*)
-	$(ECHO) "GEN $(shell realpath --relative-to=pwd $@)"
-	$(PYTHON) $(TOOLS)/$(TFLITE2C) --input models --build-dir ${BUILD} \
-                                   --vela-args ${VELA_ARGS} > $(BUILD)/tflm_builtin_models.c
-
-$(HDR_OBJS): $(GENERATED_H) $(GENERATED_C)
 
 $(BUILD)/%.o : %.c
 	$(ECHO) "CC $<"
@@ -75,5 +56,4 @@ $(BUILD)/%.o : %.s
 	$(ECHO) "AS $<"
 	$(AS) $(AFLAGS) $< -o $@
 
--include $(HDR_OBJS:%.o=%.d)
 -include $(LIB_OBJS:%.o=%.d)

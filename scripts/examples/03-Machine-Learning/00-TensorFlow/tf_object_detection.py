@@ -23,7 +23,7 @@ min_confidence = 0.4
 threshold_list = [(math.ceil(min_confidence * 255), 255)]
 
 # Load built-in FOMO face detection model
-model = ml.Model("fomo_face_detection")
+model = ml.Model("/rom/fomo_face_detection.tflite")
 print(model)
 
 # Alternatively, models can be loaded from the filesystem storage.

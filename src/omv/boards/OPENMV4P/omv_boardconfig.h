@@ -167,6 +167,10 @@
 #define OMV_FLASH_TXT_ORIGIN                  0x08040000
 #define OMV_FLASH_TXT_LENGTH                  1792K
 
+// ROMFS configuration.
+#define OMV_ROMFS_PART0_ORIGIN                0x91800000
+#define OMV_ROMFS_PART0_LENGTH                8M
+
 // MDMA configuration
 #define OMV_MDMA_CHANNEL_DCMI_0               (0)
 #define OMV_MDMA_CHANNEL_DCMI_1               (1)

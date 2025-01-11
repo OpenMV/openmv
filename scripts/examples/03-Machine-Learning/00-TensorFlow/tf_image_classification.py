@@ -16,7 +16,7 @@ sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.QVGA)
 sensor.skip_frames(time=2000)
 
-model = ml.Model("person_detect", load_to_fb=True)
+model = ml.Model("/rom/person_detect.tflite")
 print(model)
 
 clock = time.clock()

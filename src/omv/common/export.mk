@@ -43,6 +43,7 @@ export ECHO
 export MAKE
 export CAT
 export TFLITE2C
+export MKROMFS
 
 # Export Flags
 export CFLAGS

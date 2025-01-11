@@ -170,6 +170,10 @@ def cascade_binary(path, n_stages, name):
     for s in stages:
         fout.write(struct.pack('B', s)) # uint8_t
 
+    padding = (4 - ((12 + len(stages)) % 4)) % 4
+    if padding:
+        fout.write(b"\x00"*padding)
+
     # write stages thresholds
     for t in stage_threshold:
         fout.write(struct.pack('h', int(float(t.childNodes[0].nodeValue)*256))) #int16_t
@@ -265,6 +269,10 @@ def cascade_binary_old(path, n_stages, name):
     # write num feat in stages
     for s in stages:
         fout.write(struct.pack('B', s)) # uint8_t
+
+    padding = (4 - ((12 + len(stages)) % 4)) % 4
+    if padding:
+        fout.write(b"\x00"*padding)
 
     # write stages thresholds
     for t in stage_threshold:

@@ -1,0 +1,22 @@
+{
+  "0": {
+    "size": "0x20000",
+    "entries": [
+    {
+      "type": "haar",
+      "path": "{TOP}/lib/haar/haarcascade_eye.xml",
+      "stages": 0
+    },
+    {
+      "type": "haar",
+      "path": "{TOP}/lib/haar/haarcascade_smile.xml",
+      "stages": 0
+    },
+    {
+      "type": "haar",
+      "path": "{TOP}/lib/haar/haarcascade_frontalface.xml",
+      "stages": 0
+    }
+    ]
+  }
+}

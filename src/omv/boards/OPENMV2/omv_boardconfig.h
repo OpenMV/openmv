@@ -112,6 +112,10 @@
 #define OMV_FLASH_TXT_ORIGIN                  0x08010000
 #define OMV_FLASH_TXT_LENGTH                  960K
 
+// ROMFS configuration.
+#define OMV_ROMFS_PART0_ORIGIN                0x080E0000
+#define OMV_ROMFS_PART0_LENGTH                128K
+
 // CSI I2C bus
 #define OMV_CSI_I2C_ID                        (1)
 #define OMV_CSI_I2C_SPEED                     (OMV_I2C_SPEED_STANDARD)

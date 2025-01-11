@@ -19,4 +19,4 @@ freeze ("$(OMV_LIB_DIR)/", "machine.py")
 require("time")
 #require("logging")
 
-freeze("$(PORT_DIR)/modules/scripts", "_mkfs.py")
+freeze("$(PORT_DIR)/modules/scripts", "_boot.py")
