@@ -112,7 +112,10 @@ SRCS += $(wildcard ports/$(PORT)/*.c)
 
 OBJS = $(addprefix $(BUILD)/, $(SRCS:.c=.o))
 ifeq ($(USE_CLANG),1)
-CLANG_OBJS = $(BUILD)/imlib/bayer.o
+CLANG_OBJS = $(BUILD)/imlib/bayer.o \
+			 $(BUILD)/imlib/binary.o \
+			 $(BUILD)/imlib/filter.o \
+			 $(BUILD)/imlib/mathop.o
 endif
 
 OBJ_DIRS = $(sort $(dir $(OBJS)))
