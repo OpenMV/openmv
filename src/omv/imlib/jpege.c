@@ -654,14 +654,58 @@ static inline void jpeg_calc_bits(int val, uint16_t bits[2]) {
 
 static int jpeg_processDU(jpeg_buf_t *jpeg_buf, int8_t *CDU, float *fdtbl, int DC, const uint16_t (*HTDC)[2],
                           const uint16_t (*HTAC)[2]) {
-    int DU[64];
     int DUQ[64];
+    #if defined(ARM_MATH_DSP)
+    int16_t DU[64];
+    #else
+    int DU[64];
     int z1, z2, z3, z4, z5, z11, z13;
     int t0, t1, t2, t3, t4, t5, t6, t7, t10, t11, t12, t13;
+    #endif
     const uint16_t EOB[2] = { HTAC[0x00][0], HTAC[0x00][1] };
     const uint16_t M16zeroes[2] = { HTAC[0xF0][0], HTAC[0xF0][1] };
 
     // DCT rows
+    #if defined(ARM_MATH_DSP)
+    int16_t *p = DU;
+    int32_t *CDUp = (int32_t *) CDU;
+    for (int i = 8; i > 0; i--, p += 8) {
+        int32_t CDU_0123 = __REV(*CDUp++);
+        int32_t CDU_7654 = *CDUp++;
+        int32_t CDU_1_3 = __SXTB16(CDU_0123);
+        int32_t CDU_0_2 = __SXTB16_RORn(CDU_0123, 8);
+        int32_t CDU_6_4 = __SXTB16(CDU_7654);
+        int32_t CDU_7_5 = __SXTB16_RORn(CDU_7654, 8);
+        int32_t t0_t2 = __SADD16(CDU_0_2, CDU_7_5);
+        int32_t t1_t3 = __SADD16(CDU_1_3, CDU_6_4);
+        int32_t t7_t5 = __SSUB16(CDU_0_2, CDU_7_5);
+        int32_t t6_t4 = __SSUB16(CDU_1_3, CDU_6_4);
+        // Even part
+        int32_t t12_t10 = __SSAX(t1_t3, t0_t2);
+        int32_t t13_t11 = __SSAX(t0_t2, t1_t3);
+        int32_t t25_t21 = __SADD16(t12_t10, t13_t11);
+        int32_t z1 = ((int32_t) __SMUAD(t25_t21 >> 16, FIX_0_707106781)) >> 8;
+        p[0] = t25_t21; // t10 + t11
+        p[4] = __SSUB16(t12_t10, t13_t11); // t10 - t11
+        int32_t t13 = t13_t11 >> 16;
+        p[2] = t13 + z1;
+        p[6] = t13 - z1;
+        // Odd part
+        t12_t10 = __SADD16(t7_t5, t6_t4);
+        int32_t xxx_t11 = __SSAX(t7_t5, t6_t4);
+        int32_t z5 = __SMUAD(__SASX(t12_t10, t12_t10), FIX_0_382683433);
+        int32_t z2 = ((int32_t) __SMLAD(t12_t10, FIX_0_541196100, z5)) >> 8;
+        int32_t z4 = ((int32_t) __SMLAD(t12_t10 >> 16, FIX_1_306562965, z5)) >> 8;
+        int32_t z3 = ((int32_t) __SMUAD(xxx_t11, FIX_0_707106781)) >> 8;
+        int32_t t7 = t7_t5 >> 16;
+        int32_t z11 = t7 + z3;
+        int32_t z13 = t7 - z3;
+        p[5] = z13 + z2;
+        p[3] = z13 - z2;
+        p[1] = z11 + z4;
+        p[7] = z11 - z4;
+    }
+    #else
     for (int i = 8, *p = DU; i > 0; i--, p += 8, CDU += 8) {
         t0 = CDU[0] + CDU[7];
         t1 = CDU[1] + CDU[6];
@@ -703,8 +747,65 @@ static int jpeg_processDU(jpeg_buf_t *jpeg_buf, int8_t *CDU, float *fdtbl, int D
         p[1] = z11 + z4;
         p[7] = z11 - z4;
     }
+    #endif
 
     // DCT columns
+    #if defined(ARM_MATH_DSP)
+    int32_t *DUp = (int32_t *) DU;
+    for (int i = 4; i > 0; i--, DUp++) {
+        int32_t p1_p0 = DUp[0];
+        int32_t p57_p56 = DUp[28];
+        int32_t t0 = __SADD16(p1_p0, p57_p56);
+        int32_t p9_p8 = DUp[4];
+        int32_t t7 = __SSUB16(p1_p0, p57_p56);
+        int32_t p49_p48 = DUp[24];
+        int32_t t1 = __SADD16(p9_p8, p49_p48);
+        int32_t p17_p16 = DUp[8];
+        int32_t t6 = __SSUB16(p9_p8, p49_p48);
+        int32_t p41_p40 = DUp[20];
+        int32_t t2 = __SADD16(p17_p16, p41_p40);
+        int32_t p25_p24 = DUp[12];
+        int32_t t5 = __SSUB16(p17_p16, p41_p40);
+        int32_t p33_p32 = DUp[16];
+        int32_t t3 = __SADD16(p25_p24, p33_p32);
+        int32_t t4 = __SSUB16(p25_p24, p33_p32);
+        // Even part
+        int32_t t10 = __SADD16(t0, t3);
+        int32_t t13 = __SSUB16(t0, t3);
+        int32_t t11 = __SADD16(t1, t2);
+        int32_t t12 = __SSUB16(t1, t2);
+        int32_t t25 = __SADD16(t12, t13);
+        int32_t z1_c0 = ((int32_t) __SMUAD(t25, FIX_0_707106781)) >> 8;
+        int32_t z1_c1 = ((int32_t) __SMUAD(t25 >> 16, FIX_0_707106781)) >> 8;
+        int32_t z1 = __PKHBT(z1_c0, z1_c1, 16);
+        DUp[0] = __SADD16(t10, t11);
+        DUp[16] = __SSUB16(t10, t11);
+        DUp[8] = __SADD16(t13, z1);
+        DUp[24] = __SSUB16(t13, z1);
+        // Odd part
+        t10 = __SADD16(t4, t5);
+        t11 = __SADD16(t5, t6);
+        t12 = __SADD16(t6, t7);
+        int32_t t22 = __SSUB16(t10, t12);
+        int32_t z5_c0 = __SMUAD(t22, FIX_0_382683433);
+        int32_t z5_c1 = __SMUAD(t22 >> 16, FIX_0_382683433);
+        int32_t z2_c0 = ((int32_t) __SMLAD(t10, FIX_0_541196100, z5_c0)) >> 8;
+        int32_t z2_c1 = ((int32_t) __SMLAD(t10 >> 16, FIX_0_541196100, z5_c1)) >> 8;
+        int32_t z2 = __PKHBT(z2_c0, z2_c1, 16);
+        int32_t z4_c0 = ((int32_t) __SMLAD(t12, FIX_1_306562965, z5_c0)) >> 8;
+        int32_t z4_c1 = ((int32_t) __SMLAD(t12 >> 16, FIX_1_306562965, z5_c1)) >> 8;
+        int32_t z4 = __PKHBT(z4_c0, z4_c1, 16);
+        int32_t z3_c0 = ((int32_t) __SMUAD(t11, FIX_0_707106781)) >> 8;
+        int32_t z3_c1 = ((int32_t) __SMUAD(t11 >> 16, FIX_0_707106781)) >> 8;
+        int32_t z3 = __PKHBT(z3_c0, z3_c1, 16);
+        int32_t z11 = __SADD16(t7, z3);
+        int32_t z13 = __SSUB16(t7, z3);
+        DUp[20] = __SADD16(z13, z2);
+        DUp[12] = __SSUB16(z13, z2);
+        DUp[4] = __SADD16(z11, z4);
+        DUp[28] = __SSUB16(z11, z4);
+    }
+    #else
     for (int i = 8, *p = DU; i > 0; i--, p++) {
         t0 = p[0] + p[56];
         t1 = p[8] + p[48];
@@ -746,6 +847,7 @@ static int jpeg_processDU(jpeg_buf_t *jpeg_buf, int8_t *CDU, float *fdtbl, int D
         p[8] = z11 + z4;
         p[56] = z11 - z4;
     }
+    #endif
 
     // first non-zero element in reverse order
     int end0pos = 0;
