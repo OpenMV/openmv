@@ -31,15 +31,30 @@
 
 #define FB_ALIGN_SIZE_ROUND_DOWN(x) (((x) / FRAMEBUFFER_ALIGNMENT) * FRAMEBUFFER_ALIGNMENT)
 #define FB_ALIGN_SIZE_ROUND_UP(x)   FB_ALIGN_SIZE_ROUND_DOWN(((x) + FRAMEBUFFER_ALIGNMENT - 1))
-#define OMV_JPEG_BUFFER_SIZE_MAX    ((&_jpeg_memory_end - &_jpeg_memory_start) - sizeof(jpegbuffer_t))
+#define OMV_JPEG_BUFFER_SIZE_MAX    ((_jpeg_memory_end_ptr - _jpeg_memory_start_ptr) - sizeof(jpegbuffer_t))
 
+#ifdef OMV_FB_MEMORY
 extern char _fb_memory_start;
 extern char _fb_memory_end;
 framebuffer_t *framebuffer = (framebuffer_t *) &_fb_memory_start;
+static char *_fb_memory_end_ptr = &_fb_memory_end;
+#else
+static const char _fb_memory_start_ptr[OMV_FB_SIZE];
+static const char *_fb_memory_end_ptr = &_fb_memory_start_ptr[OMV_FB_SIZE - 1];
+framebuffer_t *framebuffer = (framebuffer_t *) _fb_memory_start_ptr;
+#endif
 
+#ifdef OMV_FB_MEMORY
 extern char _jpeg_memory_start;
 extern char _jpeg_memory_end;
+static const char *_jpeg_memory_start_ptr = &_jpeg_memory_start;
+static const char *_jpeg_memory_end_ptr = &_jpeg_memory_end;
 jpegbuffer_t *jpeg_framebuffer = (jpegbuffer_t *) &_jpeg_memory_start;
+#else
+static const char _jpeg_memory_start_ptr[OMV_JPEG_SIZE];
+static const char *_jpeg_memory_end_ptr = &_jpeg_memory_start_ptr[OMV_JPEG_SIZE - 1];
+jpegbuffer_t *jpeg_framebuffer = (jpegbuffer_t *) _jpeg_memory_start_ptr;
+#endif
 
 void fb_set_streaming_enabled(bool enable) {
     framebuffer->streaming_enabled = enable;
@@ -279,7 +294,7 @@ int32_t framebuffer_get_depth() {
 
 // Returns the current frame buffer size, factoring in the space taken by fb_alloc.
 static uint32_t framebuffer_max_buffer_size() {
-    uint32_t fb_total_size = FB_ALIGN_SIZE_ROUND_DOWN(&_fb_memory_end - (char *) framebuffer->data);
+    uint32_t fb_total_size = FB_ALIGN_SIZE_ROUND_DOWN(_fb_memory_end_ptr - (char *) framebuffer->data);
     uint32_t fb_avail_size = FB_ALIGN_SIZE_ROUND_DOWN(fb_alloc_stack_pointer() - (char *) framebuffer->data);
     return IM_MIN(fb_total_size, fb_avail_size);
 }

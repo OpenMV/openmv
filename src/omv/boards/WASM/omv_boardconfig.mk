@@ -1,0 +1,3 @@
+PORT=webassembly
+OMV_ENABLE_BL=0
+OMV_ENABLE_UVC=0
