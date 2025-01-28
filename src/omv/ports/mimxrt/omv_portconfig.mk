@@ -27,6 +27,9 @@ SYSTEM   ?= mimxrt/system_$(MCU_SERIES)
 STARTUP  ?= mimxrt/startup_$(MCU_SERIES)
 HAL_DIR  ?= hal/mimxrt/$(MCU_SERIES)
 
+ROMFS_IMAGE := $(FW_DIR)/romfs.stamp
+ROMFS_CONFIG := $(OMV_BOARD_CONFIG_DIR)/romfs.json
+
 # Compiler Flags
 # TODO: -Wdouble-promotion
 CFLAGS += -std=gnu99 \
@@ -413,6 +416,8 @@ FIRM_OBJ += $(addprefix $(BUILD)/$(MICROPY_DIR)/extmod/,\
 	vfs_fat_diskio.o        \
 	vfs_fat_file.o          \
 	vfs_lfs.o               \
+	vfs_rom.o               \
+	vfs_rom_file.o          \
 	vfs_posix.o             \
 	vfs_posix_file.o        \
 	vfs_reader.o            \
@@ -555,13 +560,13 @@ ifeq ($(MICROPY_PY_ML_TFLM), 1)
 OMV_CFLAGS += -I$(BUILD)/$(TENSORFLOW_DIR)/
 FIRM_OBJ += $(addprefix $(BUILD)/$(TENSORFLOW_DIR)/, \
 	tflm_backend.o \
-	tflm_builtin_models.o \
 	)
 LIBS += $(TOP_DIR)/$(TENSORFLOW_DIR)/libtflm/lib/libtflm-$(CPU)+fp-release.a
 endif
 
 ###################################################
-all: $(OPENMV)
+all: $(FIRMWARE) .WAIT $(ROMFS_IMAGE)
+	$(SIZE) $(FW_DIR)/$(FIRMWARE).elf
 
 $(BUILD):
 	$(MKDIR) -p $@
@@ -572,9 +577,6 @@ $(FW_DIR):
 FIRMWARE_OBJS: | $(BUILD) $(FW_DIR)
 	$(MAKE)  -C $(CMSIS_DIR)                 BUILD=$(BUILD)/$(CMSIS_DIR)        CFLAGS="$(CFLAGS) -MMD"
 	$(MAKE)  -C $(HAL_DIR)                   BUILD=$(BUILD)/$(HAL_DIR)          CFLAGS="$(CFLAGS) -MMD"
-ifeq ($(MICROPY_PY_ML_TFLM), 1)
-	$(MAKE)  -C $(TENSORFLOW_DIR)            BUILD=$(BUILD)/$(TENSORFLOW_DIR)   CFLAGS="$(CFLAGS) -MMD" headers
-endif
 	$(MAKE)  -C $(MICROPY_DIR)/ports/$(PORT) BUILD=$(BUILD)/$(MICROPY_DIR)      $(MPY_MKARGS)
 	$(MAKE)  -C $(GENX320_DIR)               BUILD=$(BUILD)/$(GENX320_DIR)      CFLAGS="$(CFLAGS) -MMD"
 	$(MAKE)  -C $(BOSON_DIR)                 BUILD=$(BUILD)/$(BOSON_DIR)        CFLAGS="$(CFLAGS) -MMD"
@@ -589,9 +591,15 @@ endif
 	$(MAKE)  -C $(VL53L5CX_DIR)              BUILD=$(BUILD)/$(VL53L5CX_DIR)     CFLAGS="$(CFLAGS) -MMD"
 	$(MAKE)  -C $(PIXART_DIR)                BUILD=$(BUILD)/$(PIXART_DIR)       CFLAGS="$(CFLAGS) -MMD"
 ifeq ($(MICROPY_PY_ML_TFLM), 1)
-	$(MAKE)  -C $(TENSORFLOW_DIR)            BUILD=$(BUILD)/$(TENSORFLOW_DIR)   CFLAGS="$(CFLAGS) -MMD" all
+	$(MAKE)  -C $(TENSORFLOW_DIR)            BUILD=$(BUILD)/$(TENSORFLOW_DIR)   CFLAGS="$(CFLAGS) -MMD"
 endif
 	$(MAKE)  -C $(OMV_DIR)                   BUILD=$(BUILD)/$(OMV_DIR)          CFLAGS="$(CFLAGS) -MMD"
+
+$(ROMFS_IMAGE): $(ROMFS_CONFIG)
+	$(ECHO) "GEN romfs image"
+	$(PYTHON) $(TOOLS)/$(MKROMFS) --top-dir $(TOP_DIR) --out-dir $(FW_DIR) \
+                                  --build-dir $(BUILD) --config $(ROMFS_CONFIG)
+	touch $@
 
 # This target generates the main/app firmware image located at 0x08010000
 $(FIRMWARE): FIRMWARE_OBJS
@@ -599,10 +607,6 @@ $(FIRMWARE): FIRMWARE_OBJS
         $(OMV_DIR)/ports/$(PORT)/$(LDSCRIPT).ld.S > $(BUILD)/$(LDSCRIPT).lds
 	$(CC) $(LDFLAGS) $(FIRM_OBJ) -o $(FW_DIR)/$(FIRMWARE).elf $(LIBS) -lm
 	$(OBJCOPY) -Obinary -R .big_const* $(FW_DIR)/$(FIRMWARE).elf $(FW_DIR)/$(FIRMWARE).bin
-
-# This target generates the firmware image.
-$(OPENMV): $(FIRMWARE)
-	$(SIZE) $(FW_DIR)/$(FIRMWARE).elf
 
 size:
 	$(SIZE) --format=SysV $(FW_DIR)/$(FIRMWARE).elf

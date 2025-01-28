@@ -26,13 +26,15 @@
  */
 #include <stdio.h>
 #include "py/obj.h"
-#include "py/nlr.h"
+#include "py/runtime.h"
+
+#if MICROPY_VFS
+#include "py/stream.h"
+#include "extmod/vfs.h"
+#endif
 
 #include "xalloc.h"
 #include "imlib.h"
-// built-in cascades
-#include "cascade.h"
-#include "file_utils.h"
 
 #ifdef IMLIB_ENABLE_FEATURES
 static int eval_weak_classifier(cascade_t *cascade, point_t pt, int t_idx, int w_idx, int r_idx) {
@@ -178,141 +180,123 @@ array_t *imlib_detect_objects(image_t *image, cascade_t *cascade, rectangle_t *r
     return objects;
 }
 
-#if defined(IMLIB_ENABLE_IMAGE_FILE_IO)
+#if MICROPY_VFS
+static void *cascade_buffer_read(uint8_t **buf, size_t size) {
+    uint8_t *buf8 = *buf;
+    *buf += size;
+    return buf8;
+}
+
 int imlib_load_cascade_from_file(cascade_t *cascade, const char *path) {
-    int i;
-    FIL fp;
-    FRESULT res = FR_OK;
+    int error = 0;
+    mp_obj_t args[2] = {
+        mp_obj_new_str_from_cstr(path),
+        MP_OBJ_NEW_QSTR(MP_QSTR_rb),
+    };
 
-    file_open(&fp, path, true, FA_READ | FA_OPEN_EXISTING);
+    memset(cascade, 0, sizeof(cascade_t));
 
-    // Read detection window size
-    file_read(&fp, &cascade->window, sizeof(cascade->window));
+    mp_buffer_info_t bufinfo;
+    mp_obj_t file = mp_vfs_open(MP_ARRAY_SIZE(args), args, (mp_map_t *) &mp_const_empty_map);
 
-    // Read num stages
-    file_read(&fp, &cascade->n_stages, sizeof(cascade->n_stages));
+    if (mp_get_buffer(file, &bufinfo, MP_BUFFER_READ)) {
+        uint8_t *buf = (uint8_t *) bufinfo.buf + 12;
+        // Set detection window size and the number of stages.
+        cascade->window.w = ((uint32_t *) bufinfo.buf)[0];
+        cascade->window.h = ((uint32_t *) bufinfo.buf)[1];
+        cascade->n_stages = ((uint32_t *) bufinfo.buf)[2];
 
-    cascade->stages_array = xalloc(sizeof(*cascade->stages_array) * cascade->n_stages);
-    cascade->stages_thresh_array = xalloc(sizeof(*cascade->stages_thresh_array) * cascade->n_stages);
-    if (cascade->stages_array == NULL ||
-        cascade->stages_thresh_array == NULL) {
-        res = 20;
-        goto error;
+        // Set the number features in each stages
+        cascade->stages_array = cascade_buffer_read(&buf, cascade->n_stages);
+        // Skip alignment
+        if ((uint32_t) buf % 4) {
+            buf += 4 - ((uint32_t) buf % 4);
+        }
+
+        // Sum the number of features in each stages
+        for (size_t i = 0; i < cascade->n_stages; i++) {
+            cascade->n_features += cascade->stages_array[i];
+        }
+
+        // Set features thresh array, alpha1, alpha 2,rects weights and rects
+        cascade->stages_thresh_array = cascade_buffer_read(&buf, sizeof(int16_t) * cascade->n_stages);
+        cascade->tree_thresh_array = cascade_buffer_read(&buf, sizeof(int16_t) * cascade->n_features);
+        cascade->alpha1_array = cascade_buffer_read(&buf, sizeof(int16_t) * cascade->n_features);
+        cascade->alpha2_array = cascade_buffer_read(&buf, sizeof(int16_t) * cascade->n_features);
+        cascade->num_rectangles_array = cascade_buffer_read(&buf, sizeof(int8_t) * cascade->n_features);
+
+        // Sum the number of rectangles in all features
+        for (size_t i = 0; i < cascade->n_features; i++) {
+            cascade->n_rectangles += cascade->num_rectangles_array[i];
+        }
+
+        // Set rectangles weights and rectangles (number of rectangles * 4 points)
+        cascade->weights_array = cascade_buffer_read(&buf, cascade->n_rectangles);
+        cascade->rectangles_array = cascade_buffer_read(&buf, cascade->n_rectangles * 4);
+    } else {
+        // Read detection window size.
+        mp_stream_read_exactly(file, &cascade->window, sizeof(cascade->window), &error);
+        // Read the number of stages.
+        mp_stream_read_exactly(file, &cascade->n_stages, sizeof(cascade->n_stages), &error);
+
+        // Allocate stages array.
+        cascade->stages_array = xalloc(sizeof(int8_t) * cascade->n_stages);
+
+        // Read number of features in each stages
+        mp_stream_read_exactly(file, cascade->stages_array, cascade->n_stages, &error);
+        // Skip alignment
+        uint8_t padding[4];
+        if (cascade->n_stages % 4) {
+            mp_stream_read_exactly(file, padding, 4 - (cascade->n_stages % 4), &error);
+        }
+
+        // Sum the number of features in each stages
+        for (size_t i = 0; i < cascade->n_stages; i++) {
+            cascade->n_features += cascade->stages_array[i];
+        }
+
+        // Alloc features thresh array, alpha1, alpha 2,rects weights and rects
+        cascade->stages_thresh_array = xalloc(sizeof(int16_t) * cascade->n_stages);
+        cascade->tree_thresh_array = xalloc(sizeof(int16_t) * cascade->n_features);
+        cascade->alpha1_array = xalloc(sizeof(int16_t) * cascade->n_features);
+        cascade->alpha2_array = xalloc(sizeof(int16_t) * cascade->n_features);
+        cascade->num_rectangles_array = xalloc(sizeof(int8_t) * cascade->n_features);
+
+        // Read features thresh array, alpha1, alpha 2,rects weights and rects
+        mp_stream_read_exactly(file, cascade->stages_thresh_array, sizeof(int16_t) * cascade->n_stages, &error);
+        mp_stream_read_exactly(file, cascade->tree_thresh_array, sizeof(int16_t) * cascade->n_features, &error);
+        mp_stream_read_exactly(file, cascade->alpha1_array, sizeof(int16_t) * cascade->n_features, &error);
+        mp_stream_read_exactly(file, cascade->alpha2_array, sizeof(int16_t) * cascade->n_features, &error);
+        mp_stream_read_exactly(file, cascade->num_rectangles_array, cascade->n_features, &error);
+
+        // Sum the number of rectangles per feature
+        for (size_t i = 0; i < cascade->n_features; i++) {
+            cascade->n_rectangles += cascade->num_rectangles_array[i];
+        }
+
+        // Allocate weights and rectangles arrays.
+        cascade->weights_array = xalloc(cascade->n_rectangles);
+        cascade->rectangles_array = xalloc(cascade->n_rectangles * 4);
+
+        // Read rectangles weights and rectangles (number of rectangles * 4 points)
+        mp_stream_read_exactly(file, cascade->weights_array, sizeof(int8_t) * cascade->n_rectangles, &error);
+        mp_stream_read_exactly(file, cascade->rectangles_array, sizeof(int8_t) * cascade->n_rectangles * 4, &error);
     }
 
-    /* read num features in each stages */
-    file_read(&fp, cascade->stages_array, sizeof(uint8_t) * cascade->n_stages);
-
-    /* sum num of features in each stages*/
-    for (i = 0, cascade->n_features = 0; i < cascade->n_stages; i++) {
-        cascade->n_features += cascade->stages_array[i];
+    if (error != 0) {
+        mp_raise_OSError(error);
     }
-
-    /* alloc features thresh array, alpha1, alpha 2,rects weights and rects*/
-    cascade->tree_thresh_array = xalloc(sizeof(*cascade->tree_thresh_array) * cascade->n_features);
-    cascade->alpha1_array = xalloc(sizeof(*cascade->alpha1_array) * cascade->n_features);
-    cascade->alpha2_array = xalloc(sizeof(*cascade->alpha2_array) * cascade->n_features);
-    cascade->num_rectangles_array = xalloc(sizeof(*cascade->num_rectangles_array) * cascade->n_features);
-
-    if (cascade->tree_thresh_array == NULL ||
-        cascade->alpha1_array == NULL ||
-        cascade->alpha2_array == NULL ||
-        cascade->num_rectangles_array == NULL) {
-        res = 20;
-        goto error;
-    }
-
-    /* read stages thresholds */
-    file_read(&fp, cascade->stages_thresh_array, sizeof(int16_t) * cascade->n_stages);
-
-    /* read features thresholds */
-    file_read(&fp, cascade->tree_thresh_array, sizeof(*cascade->tree_thresh_array) * cascade->n_features);
-
-    /* read alpha 1 */
-    file_read(&fp, cascade->alpha1_array, sizeof(*cascade->alpha1_array) * cascade->n_features);
-
-    /* read alpha 2 */
-    file_read(&fp, cascade->alpha2_array, sizeof(*cascade->alpha2_array) * cascade->n_features);
-
-    /* read num rectangles per feature*/
-    file_read(&fp, cascade->num_rectangles_array, sizeof(*cascade->num_rectangles_array) * cascade->n_features);
-
-    /* sum num of recatngles per feature*/
-    for (i = 0, cascade->n_rectangles = 0; i < cascade->n_features; i++) {
-        cascade->n_rectangles += cascade->num_rectangles_array[i];
-    }
-
-    cascade->weights_array = xalloc(sizeof(*cascade->weights_array) * cascade->n_rectangles);
-    cascade->rectangles_array = xalloc(sizeof(*cascade->rectangles_array) * cascade->n_rectangles * 4);
-
-    if (cascade->weights_array == NULL ||
-        cascade->rectangles_array == NULL) {
-        res = 20;
-        goto error;
-    }
-
-    /* read rectangles weights */
-    file_read(&fp, cascade->weights_array, sizeof(*cascade->weights_array) * cascade->n_rectangles);
-
-    /* read rectangles num rectangles * 4 points */
-    file_read(&fp, cascade->rectangles_array, sizeof(*cascade->rectangles_array) * cascade->n_rectangles * 4);
-
-error:
-    file_close(&fp);
-    return res;
+    mp_stream_close(file);
+    return 0;
 }
 #endif //(IMLIB_ENABLE_IMAGE_FILE_IO)
 
 int imlib_load_cascade(cascade_t *cascade, const char *path) {
-    // built-in cascade
-    if (0) {
-    #ifdef IMLIB_ENABLE_FEATURES_BUILTIN_FACE_CASCADE
-    } else if (strcmp(path, "frontalface") == 0) {
-        cascade->window.w = frontalface_window_w;
-        cascade->window.h = frontalface_window_h;
-        cascade->n_stages = frontalface_n_stages;
-        cascade->stages_array = (uint8_t *) frontalface_stages_array;
-        cascade->stages_thresh_array = (int16_t *) frontalface_stages_thresh_array;
-        cascade->tree_thresh_array = (int16_t *) frontalface_tree_thresh_array;
-        cascade->alpha1_array = (int16_t *) frontalface_alpha1_array;
-        cascade->alpha2_array = (int16_t *) frontalface_alpha2_array;
-        cascade->num_rectangles_array = (int8_t *) frontalface_num_rectangles_array;
-        cascade->weights_array = (int8_t *) frontalface_weights_array;
-        cascade->rectangles_array = (int8_t *) frontalface_rectangles_array;
+    #if MICROPY_VFS
+    // xml cascade
+    return imlib_load_cascade_from_file(cascade, path);
+    #else
+    return -1;
     #endif
-    #ifdef IMLIB_ENABLE_FEATURES_BUILTIN_EYES_CASCADE
-    } else if (strcmp(path, "eye") == 0) {
-        cascade->window.w = eye_window_w;
-        cascade->window.h = eye_window_h;
-        cascade->n_stages = eye_n_stages;
-        cascade->stages_array = (uint8_t *) eye_stages_array;
-        cascade->stages_thresh_array = (int16_t *) eye_stages_thresh_array;
-        cascade->tree_thresh_array = (int16_t *) eye_tree_thresh_array;
-        cascade->alpha1_array = (int16_t *) eye_alpha1_array;
-        cascade->alpha2_array = (int16_t *) eye_alpha2_array;
-        cascade->num_rectangles_array = (int8_t *) eye_num_rectangles_array;
-        cascade->weights_array = (int8_t *) eye_weights_array;
-        cascade->rectangles_array = (int8_t *) eye_rectangles_array;
-    #endif
-    } else {
-        #if defined(IMLIB_ENABLE_IMAGE_FILE_IO)
-        // xml cascade
-        return imlib_load_cascade_from_file(cascade, path);
-        #else
-        return -1;
-        #endif
-    }
-
-    int i;
-    // sum the number of features in all stages
-    for (i = 0, cascade->n_features = 0; i < cascade->n_stages; i++) {
-        cascade->n_features += cascade->stages_array[i];
-    }
-
-    // sum the number of recatngles in all features
-    for (i = 0, cascade->n_rectangles = 0; i < cascade->n_features; i++) {
-        cascade->n_rectangles += cascade->num_rectangles_array[i];
-    }
-    return FR_OK;
 }
 #endif // IMLIB_ENABLE_FEATURES

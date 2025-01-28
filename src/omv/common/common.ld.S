@@ -280,4 +280,10 @@ OMV_DMA_MEMORY_NEW(3)
   . = ALIGN(4);
 } > FLASH_TEXT
 
+
+// Only one partition is currently supported.
+#if defined(OMV_ROMFS_PART0_ORIGIN)
+_micropy_hw_romfs_start = OMV_ROMFS_PART0_ORIGIN;
+_micropy_hw_romfs_end =   OMV_ROMFS_PART0_ORIGIN + OMV_ROMFS_PART0_LENGTH;
+#endif
 .ARM.attributes 0 : { *(.ARM.attributes) }

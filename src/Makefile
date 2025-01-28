@@ -39,11 +39,18 @@ ECHO    = $(Q)@echo
 MAKE    = $(Q)make
 CAT     = $(Q)cat
 TFLITE2C = tflite2c.py
+MKROMFS = mkromfs.py
 
 # Targets
-TARGET ?= OPENMV4
 OPENMV = openmv
 FIRMWARE = firmware
+
+ifeq ($(TARGET),)
+  ifneq ($(MAKECMDGOALS),clean)
+    $(error Invalid or no TARGET specified)
+  endif
+  TARGET=OPENMV4
+endif
 
 # Directories
 TOP_DIR=$(shell pwd)
