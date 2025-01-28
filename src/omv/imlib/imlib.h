@@ -33,8 +33,7 @@
 #include <limits.h>
 #include <float.h>
 #include <math.h>
-#include <arm_math.h>
-#include <cmsis_extension.h>
+#include "simd.h"
 #include "fb_alloc.h"
 #include "file_utils.h"
 #include "umm_malloc.h"
@@ -789,6 +788,63 @@ bool image_get_mask_pixel(image_t *ptr, int x, int y);
         ((uint16_t *) _image->data) + (_image->w * _y); \
     })
 
+static inline void linebuf_copy_binary(int32_t y, int32_t ksize, int32_t brows, image_t *buf, image_t *dst) {
+    if (y >= ksize) {
+        // Transfer buffer lines...
+        int32_t y_offset = y - ksize;
+        vmemcpy_32(IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(dst, y_offset),
+                   IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(buf, (y_offset % brows)),
+                   IMAGE_BINARY_LINE_LEN_BYTES(dst));
+    }
+}
+
+static inline void linebuf_copy_binary_tail(int32_t ksize, int32_t brows, image_t *buf, image_t *dst) {
+    // Copy any remaining lines from the buffer image...
+    for (int32_t y = IM_MAX(dst->h - ksize, 0); y < dst->h; y++) {
+        vmemcpy_32(IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(dst, y),
+                   IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(buf, (y % brows)),
+                   IMAGE_BINARY_LINE_LEN_BYTES(dst));
+    }
+}
+
+static inline void linebuf_copy_grayscale(int32_t y, int32_t ksize, int32_t brows, image_t *buf, image_t *dst) {
+    if (y >= ksize) {
+        // Transfer buffer lines...
+        int32_t y_offset = y - ksize;
+        vmemcpy_8(IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(dst, y_offset),
+                  IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(buf, (y_offset % brows)),
+                  IMAGE_GRAYSCALE_LINE_LEN_BYTES(dst));
+    }
+}
+
+static inline void linebuf_copy_grayscale_tail(int32_t ksize, int32_t brows, image_t *buf, image_t *dst) {
+    // Copy any remaining lines from the buffer image...
+    for (int32_t y = IM_MAX(dst->h - ksize, 0); y < dst->h; y++) {
+        vmemcpy_8(IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(dst, y),
+                  IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(buf, (y % brows)),
+                  IMAGE_GRAYSCALE_LINE_LEN_BYTES(dst));
+    }
+}
+
+static inline void linebuf_copy_rgb565(int32_t y, int32_t ksize, int32_t brows, image_t *buf, image_t *dst) {
+    if (y >= ksize) {
+        // Transfer buffer lines...
+        int32_t y_offset = y - ksize;
+        vmemcpy_16(IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(dst, y_offset),
+                   IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(buf, (y_offset % brows)),
+                   IMAGE_RGB565_LINE_LEN_BYTES(dst));
+    }
+}
+
+static inline void linebuf_copy_rgb565_tail(int32_t ksize, int32_t brows, image_t *buf, image_t *dst) {
+    // Copy any remaining lines from the buffer image...
+    for (int32_t y = IM_MAX(dst->h - ksize, 0); y < dst->h; y++) {
+        vmemcpy_16(IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(dst, y),
+                   IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(buf, (y % brows)),
+                   IMAGE_RGB565_LINE_LEN_BYTES(dst));
+    }
+}
+
 ////////////////
 // JPEG Stuff //
 ////////////////
@@ -1442,8 +1498,7 @@ void imlib_midpoint_filter(image_t *img, const int ksize, float bias, bool thres
 void imlib_morph(image_t *img,
                  const int ksize,
                  const int *krn,
-                 const float m,
-                 const float b,
+                 const int sum,
                  bool threshold,
                  int offset,
                  bool invert,

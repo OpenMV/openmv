@@ -2262,10 +2262,8 @@ static MP_DEFINE_CONST_FUN_OBJ_KW(py_image_midpoint_obj, 2, py_image_midpoint);
 
 #ifdef IMLIB_ENABLE_MORPH
 static mp_obj_t py_image_morph(uint n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
-    enum { ARG_mul, ARG_add, ARG_threshold, ARG_offset, ARG_invert, ARG_mask };
+    enum { ARG_threshold, ARG_offset, ARG_invert, ARG_mask };
     static const mp_arg_t allowed_args[] = {
-        { MP_QSTR_mul, MP_ARG_OBJ | MP_ARG_KW_ONLY,  {.u_rom_obj = MP_ROM_NONE } },
-        { MP_QSTR_add, MP_ARG_OBJ | MP_ARG_KW_ONLY,  {.u_rom_obj = MP_ROM_NONE } },
         { MP_QSTR_threshold, MP_ARG_BOOL | MP_ARG_KW_ONLY,  {.u_bool = false } },
         { MP_QSTR_offset, MP_ARG_INT | MP_ARG_KW_ONLY,  {.u_int = 0 } },
         { MP_QSTR_invert, MP_ARG_BOOL | MP_ARG_KW_ONLY,  {.u_bool = false } },
@@ -2326,10 +2324,7 @@ static mp_obj_t py_image_morph(uint n_args, const mp_obj_t *pos_args, mp_map_t *
         mask = py_helper_arg_to_image(args[ARG_mask].u_obj, ARG_IMAGE_MUTABLE | ARG_IMAGE_ALLOC);
     }
 
-    float mul = py_helper_arg_to_float(args[ARG_mul].u_obj, 1.0f);
-    float add = py_helper_arg_to_float(args[ARG_add].u_obj, 0.0f);
-
-    imlib_morph(image, ksize, krn, mul / sum, add, args[ARG_threshold].u_bool,
+    imlib_morph(image, ksize, krn, sum, args[ARG_threshold].u_bool,
                 args[ARG_offset].u_int, args[ARG_invert].u_bool, mask);
     fb_alloc_free_till_mark();
     return pos_args[0];
@@ -2339,11 +2334,9 @@ static MP_DEFINE_CONST_FUN_OBJ_KW(py_image_morph_obj, 3, py_image_morph);
 
 #ifdef IMLIB_ENABLE_GAUSSIAN
 static mp_obj_t py_image_gaussian(uint n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
-    enum { ARG_unsharp, ARG_mul, ARG_add, ARG_threshold, ARG_offset, ARG_invert, ARG_mask };
+    enum { ARG_unsharp, ARG_threshold, ARG_offset, ARG_invert, ARG_mask };
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_unsharp, MP_ARG_BOOL | MP_ARG_KW_ONLY, {.u_bool = false } },
-        { MP_QSTR_mul, MP_ARG_OBJ | MP_ARG_KW_ONLY,  {.u_rom_obj = MP_ROM_NONE } },
-        { MP_QSTR_add, MP_ARG_OBJ | MP_ARG_KW_ONLY,  {.u_rom_obj = MP_ROM_NONE } },
         { MP_QSTR_threshold, MP_ARG_BOOL | MP_ARG_KW_ONLY,  {.u_bool = false } },
         { MP_QSTR_offset, MP_ARG_INT | MP_ARG_KW_ONLY,  {.u_int = 0 } },
         { MP_QSTR_invert, MP_ARG_BOOL | MP_ARG_KW_ONLY,  {.u_bool = false } },
@@ -2393,10 +2386,7 @@ static mp_obj_t py_image_gaussian(uint n_args, const mp_obj_t *pos_args, mp_map_
         mask = py_helper_arg_to_image(args[ARG_mask].u_obj, ARG_IMAGE_MUTABLE | ARG_IMAGE_ALLOC);
     }
 
-    float mul = py_helper_arg_to_float(args[ARG_mul].u_obj, 1.0f);
-    float add = py_helper_arg_to_float(args[ARG_add].u_obj, 0.0f);
-
-    imlib_morph(image, ksize, krn, mul / sum, add, args[ARG_threshold].u_bool,
+    imlib_morph(image, ksize, krn, sum, args[ARG_threshold].u_bool,
                 args[ARG_offset].u_int, args[ARG_invert].u_bool, mask);
     fb_alloc_free_till_mark();
     return pos_args[0];
@@ -2406,11 +2396,9 @@ static MP_DEFINE_CONST_FUN_OBJ_KW(py_image_gaussian_obj, 2, py_image_gaussian);
 
 #ifdef IMLIB_ENABLE_LAPLACIAN
 static mp_obj_t py_image_laplacian(uint n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
-    enum { ARG_sharpen, ARG_mul, ARG_add, ARG_threshold, ARG_offset, ARG_invert, ARG_mask };
+    enum { ARG_sharpen, ARG_threshold, ARG_offset, ARG_invert, ARG_mask };
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_sharpen, MP_ARG_BOOL | MP_ARG_KW_ONLY, {.u_bool = false } },
-        { MP_QSTR_mul, MP_ARG_OBJ | MP_ARG_KW_ONLY,  {.u_rom_obj = MP_ROM_NONE } },
-        { MP_QSTR_add, MP_ARG_OBJ | MP_ARG_KW_ONLY,  {.u_rom_obj = MP_ROM_NONE } },
         { MP_QSTR_threshold, MP_ARG_BOOL | MP_ARG_KW_ONLY,  {.u_bool = false } },
         { MP_QSTR_offset, MP_ARG_INT | MP_ARG_KW_ONLY,  {.u_int = 0 } },
         { MP_QSTR_invert, MP_ARG_BOOL | MP_ARG_KW_ONLY,  {.u_bool = false } },
@@ -2461,10 +2449,7 @@ static mp_obj_t py_image_laplacian(uint n_args, const mp_obj_t *pos_args, mp_map
         mask = py_helper_arg_to_image(args[ARG_mask].u_obj, ARG_IMAGE_MUTABLE | ARG_IMAGE_ALLOC);
     }
 
-    float mul = py_helper_arg_to_float(args[ARG_mul].u_obj, 1.0f);
-    float add = py_helper_arg_to_float(args[ARG_add].u_obj, 0.0f);
-
-    imlib_morph(image, ksize, krn, mul / sum, add, args[ARG_threshold].u_bool,
+    imlib_morph(image, ksize, krn, sum, args[ARG_threshold].u_bool,
                 args[ARG_offset].u_int, args[ARG_invert].u_bool, mask);
     fb_alloc_free_till_mark();
     return pos_args[0];
