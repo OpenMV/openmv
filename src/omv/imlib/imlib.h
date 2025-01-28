@@ -33,8 +33,7 @@
 #include <limits.h>
 #include <float.h>
 #include <math.h>
-#include <arm_math.h>
-#include <cmsis_extension.h>
+#include "simd.h"
 #include "fb_alloc.h"
 #include "file_utils.h"
 #include "umm_malloc.h"
@@ -788,6 +787,45 @@ bool image_get_mask_pixel(image_t *ptr, int x, int y);
         __typeof__ (y) _y = (y);                        \
         ((uint16_t *) _image->data) + (_image->w * _y); \
     })
+
+static inline void linebuf_copy(pixformat_t pixfmt, int32_t y, int32_t ksize, int32_t brows, image_t *buf, image_t *dst) {
+    if (y >= ksize) {
+        // Transfer buffer lines...
+        int32_t y_offset = y - ksize;
+        if (pixfmt == PIXFORMAT_BINARY) {
+            vmemcpy_32(IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(dst, y_offset),
+                       IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(buf, (y_offset % brows)),
+                       IMAGE_BINARY_LINE_LEN_BYTES(dst));
+        } else if (pixfmt == PIXFORMAT_GRAYSCALE) {
+            vmemcpy_8(IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(dst, y_offset),
+                      IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(buf, (y_offset % brows)),
+                      IMAGE_GRAYSCALE_LINE_LEN_BYTES(dst));
+        } else if (pixfmt == PIXFORMAT_RGB565) {
+            vmemcpy_16(IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(dst, y_offset),
+                       IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(buf, (y_offset % brows)),
+                       IMAGE_RGB565_LINE_LEN_BYTES(dst));
+        }
+    }
+}
+
+static inline void linebuf_copy_tail(pixformat_t pixfmt, int32_t ksize, int32_t brows, image_t *buf, image_t *dst) {
+    // Copy any remaining lines from the buffer image...
+    for (int32_t y = IM_MAX(dst->h - ksize, 0); y < dst->h; y++) {
+        if (pixfmt == PIXFORMAT_BINARY) {
+            vmemcpy_32(IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(dst, y),
+                       IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(buf, (y % brows)),
+                       IMAGE_BINARY_LINE_LEN_BYTES(dst));
+        } else if (pixfmt == PIXFORMAT_GRAYSCALE) {
+            vmemcpy_8(IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(dst, y),
+                      IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(buf, (y % brows)),
+                      IMAGE_GRAYSCALE_LINE_LEN_BYTES(dst));
+        } else if (pixfmt == PIXFORMAT_RGB565) {
+            vmemcpy_16(IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(dst, y),
+                       IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(buf, (y % brows)),
+                       IMAGE_RGB565_LINE_LEN_BYTES(dst));
+        }
+    }
+}
 
 ////////////////
 // JPEG Stuff //

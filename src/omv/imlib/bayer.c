@@ -24,7 +24,6 @@
  * Debayering Functions
  */
 #include "imlib.h"
-#include "simd.h"
 
 #define VBAYER_Y_STRIDE     (2)
 #define VBAYER_X_STRIDE     ((UINT8_VECTOR_SIZE) / 2)
@@ -498,7 +497,7 @@ static inline v4x_rows_t vdebayer_load_rows(const image_t *src, v4x_row_ptrs_t r
 //
 // Returns 2x int8_t Y (MSB [garbage, Y1, garbage, Y0] LSB) pixels for every 32-bits.
 static inline v128_t vdebayer_to_y(vrgb_pixels_t pixels) {
-    pixels.r = vrgb_pixels_to_grayscale(pixels);
+    pixels.r = vrgb_pixels888_to_grayscale(pixels);
     #if (OMV_JPEG_CODEC_ENABLE == 0)
     pixels.r = veor_u32(pixels.r, vdup_u32(0x800080));
     #endif
@@ -588,7 +587,7 @@ static inline void vdebayer_store_packed_grayscale(uint8_t *p, vrgb_pixels_t pac
         .b = vuxtb16(packed_pixels.b),
     };
 
-    v128_t v0 = vrgb_pixels_to_grayscale(vdebayer_apply_rb_gain(pixels0, red_gain, blue_gain));
+    v128_t v0 = vrgb_pixels888_to_grayscale(vdebayer_apply_rb_gain(pixels0, red_gain, blue_gain));
 
     vrgb_pixels_t pixels1 = {
         .r = vuxtb16_ror8(packed_pixels.r),
@@ -596,9 +595,9 @@ static inline void vdebayer_store_packed_grayscale(uint8_t *p, vrgb_pixels_t pac
         .b = vuxtb16_ror8(packed_pixels.b),
     };
 
-    v128_t v1 = vrgb_pixels_to_grayscale(vdebayer_apply_rb_gain(pixels1, red_gain, blue_gain));
+    v128_t v1 = vrgb_pixels888_to_grayscale(vdebayer_apply_rb_gain(pixels1, red_gain, blue_gain));
 
-    vstr_u8_pred(p, vmov_u16_narrow_u8_hi(v0, v1), vpredicate_8(len));
+    vstr_u8_pred(p, vmov_u16_narrow_u8_combine(v0, v1, true), vpredicate_8(len));
 }
 
 // In the case of vectors larger than 32-bits the pattern is repeated for every 32-bits.
@@ -619,7 +618,7 @@ static inline void vdebayer_store_packed_rgb565(uint16_t *p, vrgb_pixels_t packe
         .b = vuxtb16(packed_pixels.b),
     };
 
-    out.r0 = vrgb_pixels_to_rgb565(vdebayer_apply_rb_gain(pixels0, red_gain, blue_gain));
+    out.r0 = vrgb_pixels888_to_rgb565(vdebayer_apply_rb_gain(pixels0, red_gain, blue_gain));
 
     vrgb_pixels_t pixels1 = {
         .r = vuxtb16_ror8(packed_pixels.r),
@@ -627,7 +626,7 @@ static inline void vdebayer_store_packed_rgb565(uint16_t *p, vrgb_pixels_t packe
         .b = vuxtb16_ror8(packed_pixels.b),
     };
 
-    out.r1 = vrgb_pixels_to_rgb565(vdebayer_apply_rb_gain(pixels1, red_gain, blue_gain));
+    out.r1 = vrgb_pixels888_to_rgb565(vdebayer_apply_rb_gain(pixels1, red_gain, blue_gain));
 
     if (len >= (UINT16_VECTOR_SIZE * 2)) {
         vst2_u16(p, out);
@@ -1747,11 +1746,11 @@ static void vdebayer_bggr_to_rgb565_awb(image_t *src, image_t *dst, image_t *buf
             rows.r3 = vldr_u32_gather_unaligned(rowptrs.p3.u8 + x, offsets);
 
             vrgb_pixels_t pixels0 = vdebayer_bggr(rows.r0, rows.r1, rows.r2);
-            vstr_u16(p0 + x, vrgb_pixels_to_rgb565(vdebayer_apply_rb_gain(pixels0, red_gain, blue_gain)));
+            vstr_u16(p0 + x, vrgb_pixels888_to_rgb565(vdebayer_apply_rb_gain(pixels0, red_gain, blue_gain)));
 
             // PIXFORMAT_BAYER_BGGR shifted down by 1 becomes PIXFORMAT_BAYER_GRBG
             vrgb_pixels_t pixels1 = vdebayer_grbg(rows.r1, rows.r2, rows.r3);
-            vstr_u16(p1 + x, vrgb_pixels_to_rgb565(vdebayer_apply_rb_gain(pixels1, red_gain, blue_gain)));
+            vstr_u16(p1 + x, vrgb_pixels888_to_rgb565(vdebayer_apply_rb_gain(pixels1, red_gain, blue_gain)));
         }
 
         if (x < src->w) {
@@ -1789,7 +1788,7 @@ static void vdebayer_bggr_to_rgb565_awb(image_t *src, image_t *dst, image_t *buf
             rows.r2 = vldr_u32_gather_unaligned(rowptrs.p2.u8 + x, offsets);
 
             vrgb_pixels_t pixels0 = vdebayer_bggr(rows.r0, rows.r1, rows.r2);
-            vstr_u16(p0 + x, vrgb_pixels_to_rgb565(vdebayer_apply_rb_gain(pixels0, red_gain, blue_gain)));
+            vstr_u16(p0 + x, vrgb_pixels888_to_rgb565(vdebayer_apply_rb_gain(pixels0, red_gain, blue_gain)));
         }
 
         if (x < src->w) {
@@ -1833,11 +1832,11 @@ static void vdebayer_gbrg_to_rgb565_awb(image_t *src, image_t *dst, image_t *buf
             rows.r3 = vldr_u32_gather_unaligned(rowptrs.p3.u8 + x, offsets);
 
             vrgb_pixels_t pixels0 = vdebayer_gbrg(rows.r0, rows.r1, rows.r2);
-            vstr_u16(p0 + x, vrgb_pixels_to_rgb565(vdebayer_apply_rb_gain(pixels0, red_gain, blue_gain)));
+            vstr_u16(p0 + x, vrgb_pixels888_to_rgb565(vdebayer_apply_rb_gain(pixels0, red_gain, blue_gain)));
 
             // PIXFORMAT_BAYER_GBRG shifted down by 1 becomes PIXFORMAT_BAYER_RGGB
             vrgb_pixels_t pixels1 = vdebayer_rggb(rows.r1, rows.r2, rows.r3);
-            vstr_u16(p1 + x, vrgb_pixels_to_rgb565(vdebayer_apply_rb_gain(pixels1, red_gain, blue_gain)));
+            vstr_u16(p1 + x, vrgb_pixels888_to_rgb565(vdebayer_apply_rb_gain(pixels1, red_gain, blue_gain)));
         }
 
         if (x < src->w) {
@@ -1875,7 +1874,7 @@ static void vdebayer_gbrg_to_rgb565_awb(image_t *src, image_t *dst, image_t *buf
             rows.r2 = vldr_u32_gather_unaligned(rowptrs.p2.u8 + x, offsets);
 
             vrgb_pixels_t pixels0 = vdebayer_gbrg(rows.r0, rows.r1, rows.r2);
-            vstr_u16(p0 + x, vrgb_pixels_to_rgb565(vdebayer_apply_rb_gain(pixels0, red_gain, blue_gain)));
+            vstr_u16(p0 + x, vrgb_pixels888_to_rgb565(vdebayer_apply_rb_gain(pixels0, red_gain, blue_gain)));
         }
 
         if (x < src->w) {
@@ -1919,11 +1918,11 @@ static void vdebayer_grbg_to_rgb565_awb(image_t *src, image_t *dst, image_t *buf
             rows.r3 = vldr_u32_gather_unaligned(rowptrs.p3.u8 + x, offsets);
 
             vrgb_pixels_t pixels0 = vdebayer_grbg(rows.r0, rows.r1, rows.r2);
-            vstr_u16(p0 + x, vrgb_pixels_to_rgb565(vdebayer_apply_rb_gain(pixels0, red_gain, blue_gain)));
+            vstr_u16(p0 + x, vrgb_pixels888_to_rgb565(vdebayer_apply_rb_gain(pixels0, red_gain, blue_gain)));
 
             // PIXFORMAT_BAYER_GRBG shifted down by 1 becomes PIXFORMAT_BAYER_BGGR
             vrgb_pixels_t pixels1 = vdebayer_bggr(rows.r1, rows.r2, rows.r3);
-            vstr_u16(p1 + x, vrgb_pixels_to_rgb565(vdebayer_apply_rb_gain(pixels1, red_gain, blue_gain)));
+            vstr_u16(p1 + x, vrgb_pixels888_to_rgb565(vdebayer_apply_rb_gain(pixels1, red_gain, blue_gain)));
         }
 
         if (x < src->w) {
@@ -1961,7 +1960,7 @@ static void vdebayer_grbg_to_rgb565_awb(image_t *src, image_t *dst, image_t *buf
             rows.r2 = vldr_u32_gather_unaligned(rowptrs.p2.u8 + x, offsets);
 
             vrgb_pixels_t pixels0 = vdebayer_grbg(rows.r0, rows.r1, rows.r2);
-            vstr_u16(p0 + x, vrgb_pixels_to_rgb565(vdebayer_apply_rb_gain(pixels0, red_gain, blue_gain)));
+            vstr_u16(p0 + x, vrgb_pixels888_to_rgb565(vdebayer_apply_rb_gain(pixels0, red_gain, blue_gain)));
         }
 
         if (x < src->w) {
@@ -2005,11 +2004,11 @@ static void vdebayer_rggb_to_rgb565_awb(image_t *src, image_t *dst, image_t *buf
             rows.r3 = vldr_u32_gather_unaligned(rowptrs.p3.u8 + x, offsets);
 
             vrgb_pixels_t pixels0 = vdebayer_rggb(rows.r0, rows.r1, rows.r2);
-            vstr_u16(p0 + x, vrgb_pixels_to_rgb565(vdebayer_apply_rb_gain(pixels0, red_gain, blue_gain)));
+            vstr_u16(p0 + x, vrgb_pixels888_to_rgb565(vdebayer_apply_rb_gain(pixels0, red_gain, blue_gain)));
 
             // PIXFORMAT_BAYER_RGGB shifted down by 1 becomes PIXFORMAT_BAYER_GBRG
             vrgb_pixels_t pixels1 = vdebayer_gbrg(rows.r1, rows.r2, rows.r3);
-            vstr_u16(p1 + x, vrgb_pixels_to_rgb565(vdebayer_apply_rb_gain(pixels1, red_gain, blue_gain)));
+            vstr_u16(p1 + x, vrgb_pixels888_to_rgb565(vdebayer_apply_rb_gain(pixels1, red_gain, blue_gain)));
         }
 
         if (x < src->w) {
@@ -2047,7 +2046,7 @@ static void vdebayer_rggb_to_rgb565_awb(image_t *src, image_t *dst, image_t *buf
             rows.r2 = vldr_u32_gather_unaligned(rowptrs.p2.u8 + x, offsets);
 
             vrgb_pixels_t pixels0 = vdebayer_rggb(rows.r0, rows.r1, rows.r2);
-            vstr_u16(p0 + x, vrgb_pixels_to_rgb565(vdebayer_apply_rb_gain(pixels0, red_gain, blue_gain)));
+            vstr_u16(p0 + x, vrgb_pixels888_to_rgb565(vdebayer_apply_rb_gain(pixels0, red_gain, blue_gain)));
         }
 
         if (x < src->w) {
