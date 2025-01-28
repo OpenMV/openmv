@@ -184,6 +184,118 @@ __STATIC_FORCEINLINE uint32_t __USAT16(int32_t val, uint32_t sat)
 
 #if (defined (__ARM_FEATURE_DSP) && (__ARM_FEATURE_DSP == 1))
 
+__STATIC_FORCEINLINE uint32_t __SMULBB(uint32_t op1, uint32_t op2)
+{
+  uint32_t result;
+
+  __ASM volatile ("smulbb %0, %1, %2" : "=r" (result) : "r" (op1), "r" (op2) );
+  return(result);
+}
+
+__STATIC_FORCEINLINE uint32_t __SMULBT(uint32_t op1, uint32_t op2)
+{
+  uint32_t result;
+
+  __ASM volatile ("smulbt %0, %1, %2" : "=r" (result) : "r" (op1), "r" (op2) );
+  return(result);
+}
+
+__STATIC_FORCEINLINE uint32_t __SMULTB(uint32_t op1, uint32_t op2)
+{
+  uint32_t result;
+
+  __ASM volatile ("smultb %0, %1, %2" : "=r" (result) : "r" (op1), "r" (op2) );
+  return(result);
+}
+
+__STATIC_FORCEINLINE uint32_t __SMULTT(uint32_t op1, uint32_t op2)
+{
+  uint32_t result;
+
+  __ASM volatile ("smultt %0, %1, %2" : "=r" (result) : "r" (op1), "r" (op2) );
+  return(result);
+}
+
+__STATIC_FORCEINLINE uint32_t __SMULWB(uint32_t op1, uint32_t op2)
+{
+  uint32_t result;
+
+  __ASM volatile ("smulwb %0, %1, %2" : "=r" (result) : "r" (op1), "r" (op2) );
+  return(result);
+}
+
+__STATIC_FORCEINLINE uint32_t __SMULWT(uint32_t op1, uint32_t op2)
+{
+  uint32_t result;
+
+  __ASM volatile ("smulwt %0, %1, %2" : "=r" (result) : "r" (op1), "r" (op2) );
+  return(result);
+}
+
+__STATIC_FORCEINLINE uint32_t __SMLABB(uint32_t op1, uint32_t op2, uint32_t op3)
+{
+  uint32_t result;
+
+  __ASM volatile ("smlabb %0, %1, %2, %3" : "=r" (result) : "r" (op1), "r" (op2), "r" (op3) );
+  return(result);
+}
+
+__STATIC_FORCEINLINE uint32_t __SMLABT(uint32_t op1, uint32_t op2, uint32_t op3)
+{
+  uint32_t result;
+
+  __ASM volatile ("smlabt %0, %1, %2, %3" : "=r" (result) : "r" (op1), "r" (op2), "r" (op3) );
+  return(result);
+}
+
+__STATIC_FORCEINLINE uint32_t __SMLATB(uint32_t op1, uint32_t op2, uint32_t op3)
+{
+  uint32_t result;
+
+  __ASM volatile ("smlatb %0, %1, %2, %3" : "=r" (result) : "r" (op1), "r" (op2), "r" (op3) );
+  return(result);
+}
+
+__STATIC_FORCEINLINE uint32_t __SMLATT(uint32_t op1, uint32_t op2, uint32_t op3)
+{
+  uint32_t result;
+
+  __ASM volatile ("smlatt %0, %1, %2, %3" : "=r" (result) : "r" (op1), "r" (op2), "r" (op3) );
+  return(result);
+}
+
+__STATIC_FORCEINLINE uint32_t __SMLAWB(uint32_t op1, uint32_t op2, uint32_t op3)
+{
+  uint32_t result;
+
+  __ASM volatile ("smlawb %0, %1, %2, %3" : "=r" (result) : "r" (op1), "r" (op2), "r" (op3) );
+  return(result);
+}
+
+__STATIC_FORCEINLINE uint32_t __SMLAWT(uint32_t op1, uint32_t op2, uint32_t op3)
+{
+  uint32_t result;
+
+  __ASM volatile ("smlawt %0, %1, %2, %3" : "=r" (result) : "r" (op1), "r" (op2), "r" (op3) );
+  return(result);
+}
+
+__STATIC_FORCEINLINE uint32_t __SMMULR(uint32_t op1, uint32_t op2)
+{
+  uint32_t result;
+
+  __ASM volatile ("smmulr %0, %1, %2" : "=r" (result) : "r" (op1), "r" (op2) );
+  return(result);
+}
+
+__STATIC_FORCEINLINE uint32_t __UXTH(uint32_t op1)
+{
+  uint32_t result;
+
+  __ASM volatile ("uxth %0, %1" : "=r" (result) : "r" (op1));
+  return(result);
+}
+
 __STATIC_FORCEINLINE uint32_t __UXTB(uint32_t op1)
 {
   uint32_t result;
@@ -216,6 +328,22 @@ __STATIC_FORCEINLINE uint32_t __UXTAB_RORn(uint32_t op1, uint32_t op2, uint32_t 
   return result;
 }
 
+__STATIC_FORCEINLINE uint32_t __UXTAB16_RORn(uint32_t op1, uint32_t op2, uint32_t rotate)
+{
+  uint32_t result;
+
+  __ASM volatile ("uxtab16 %0, %1, %2, ROR %3" : "=r" (result) : "r" (op1), "r" (op2), "i" (rotate) );
+  return result;
+}
+
+__STATIC_FORCEINLINE uint32_t __SXTH(uint32_t op1)
+{
+  uint32_t result;
+
+  __ASM volatile ("sxth %0, %1" : "=r" (result) : "r" (op1));
+  return(result);
+}
+
 __STATIC_FORCEINLINE uint32_t __SXTB(uint32_t op1)
 {
   uint32_t result;
@@ -232,7 +360,85 @@ __STATIC_FORCEINLINE uint32_t __SXTB_RORn(uint32_t op1, uint32_t rotate)
   return result;
 }
 
+__STATIC_FORCEINLINE uint32_t __SXTAB_RORn(uint32_t op1, uint32_t op2, uint32_t rotate)
+{
+  uint32_t result;
+
+  __ASM volatile ("sxtab %0, %1, %2, ROR %3" : "=r" (result) : "r" (op1), "r" (op2), "i" (rotate) );
+  return result;
+}
+
 #else
+
+__STATIC_FORCEINLINE int32_t __SMULBB(int32_t op1, int32_t op2)
+{
+  return ((op1 << 16) >> 16) * ((op2 << 16) >> 16);
+}
+
+__STATIC_FORCEINLINE int32_t __SMULBT(int32_t op1, int32_t op2)
+{
+  return ((op1 << 16) >> 16) * (op2 >> 16);
+}
+
+__STATIC_FORCEINLINE int32_t __SMULTB(int32_t op1, int32_t op2)
+{
+  return (op1 >> 16) * ((op2 << 16) >> 16);
+}
+
+__STATIC_FORCEINLINE int32_t __SMULTT(int32_t op1, int32_t op2)
+{
+  return (op1 >> 16) * (op2 >> 16);
+}
+
+__STATIC_FORCEINLINE int32_t __SMULWB(int32_t op1, int32_t op2)
+{
+  return (((int64_t) op1) * ((int64_t) ((op2 << 16) >> 16))) >> 16;
+}
+
+__STATIC_FORCEINLINE int32_t __SMULWT(int32_t op1, int32_t op2)
+{
+  return (((int64_t) op1) * ((int64_t) (op2 >> 16))) >> 16;
+}
+
+__STATIC_FORCEINLINE int32_t __SMLABB(int32_t op1, int32_t op2, int32_t op3)
+{
+  return (((op1 << 16) >> 16) * ((op2 << 16) >> 16)) + op3;
+}
+
+__STATIC_FORCEINLINE int32_t __SMLABT(int32_t op1, int32_t op2, int32_t op3)
+{
+  return (((op1 << 16) >> 16) * (op2 >> 16)) + op3;
+}
+
+__STATIC_FORCEINLINE int32_t __SMLATB(int32_t op1, int32_t op2, int32_t op3)
+{
+  return ((op1 >> 16) * ((op2 << 16) >> 16)) + op3;
+}
+
+__STATIC_FORCEINLINE int32_t __SMLATT(int32_t op1, int32_t op2, int32_t op3)
+{
+  return ((op1 >> 16) * (op2 >> 16)) + op3;
+}
+
+__STATIC_FORCEINLINE int32_t __SMLAWB(int32_t op1, int32_t op2, int32_t op3)
+{
+  return ((((int64_t) op1) * ((int64_t) ((op2 << 16) >> 16))) >> 16) + op3;
+}
+
+__STATIC_FORCEINLINE int32_t __SMLAWT(int32_t op1, int32_t op2, int32_t op3)
+{
+  return ((((int64_t) op1) * ((int64_t) (op2 >> 16))) >> 16) + op3;
+}
+
+__STATIC_FORCEINLINE int32_t __SMMULR(int32_t op1, int32_t op2)
+{
+  return ((((int64_t) op1) * ((int64_t) op2)) + 0x80000000) >> 32;
+}
+
+__STATIC_FORCEINLINE uint32_t __UXTH(uint32_t op1)
+{
+  return op1 & 0xFFFF;
+}
 
 __STATIC_FORCEINLINE uint32_t __UXTB(uint32_t op1)
 {
@@ -242,6 +448,31 @@ __STATIC_FORCEINLINE uint32_t __UXTB(uint32_t op1)
 __STATIC_FORCEINLINE uint32_t __UXTB_RORn(uint32_t op1, uint32_t rotate)
 {
   return (op1 >> rotate) & 0xFF;
+}
+
+__STATIC_FORCEINLINE uint32_t __UXTAB_RORn(uint32_t op1, uint32_t op2, uint32_t rotate)
+{
+  return ((op1 >> rotate) & 0xFF) + op2;
+}
+
+__STATIC_FORCEINLINE uint32_t __SXTH(int32_t op1)
+{
+  return (op1 << 16) >> 16;
+}
+
+__STATIC_FORCEINLINE uint32_t __SXTB(int32_t op1)
+{
+  return (op1 << 24) >> 24;
+}
+
+__STATIC_FORCEINLINE uint32_t __SXTB_RORn(int32_t op1, uint32_t rotate)
+{
+  return ((op1 >> rotate) << 24) >> 24;
+}
+
+__STATIC_FORCEINLINE uint32_t __SXTAB_RORn(int32_t op1, uint32_t op2, uint32_t rotate)
+{
+  return (((op1 >> rotate) << 24) >> 24) + op2;
 }
 
 __STATIC_FORCEINLINE uint32_t __SSUB16(uint32_t op1, uint32_t op2)
