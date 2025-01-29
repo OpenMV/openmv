@@ -3136,13 +3136,11 @@ void imlib_draw_image(image_t *dst_img,
         }
 
         // Query available on-chip RAM.
-        uint32_t size;
-        void *data = fb_alloc_all(&size, FB_ALLOC_PREFER_SPEED | FB_ALLOC_CACHE_ALIGN);
-        fb_free();
+        uint32_t size = fb_avail(FB_ALLOC_PREFER_SPEED | FB_ALLOC_CACHE_ALIGN);
 
         // Allocate a buffer to hold chunks of the transposed image while not using all of the on-chip RAM.
         size = IM_MIN(size, image_size(&t_src_img));
-        data = fb_alloc(size, FB_ALLOC_PREFER_SPEED | FB_ALLOC_CACHE_ALIGN);
+        void *data = fb_alloc(size, FB_ALLOC_PREFER_SPEED | FB_ALLOC_CACHE_ALIGN);
 
         // line_num stores how many lines we can do at a time with on-chip RAM.
         image_t temp = {.w = t_roi.w, .h = t_roi.h, .pixfmt = t_src_img.pixfmt};

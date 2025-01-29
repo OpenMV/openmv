@@ -215,7 +215,7 @@ static corner_t *agast58_detect(image_t *img, int b, int* num_corners, rectangle
 	width=s_width;
 
     // Try to alloc MAX_CORNERS or the actual max corners we can alloc.
-    int max_corners = IM_MIN(MAX_CORNERS, (fb_avail() / sizeof(corner_t)));
+    int max_corners = IM_MIN(MAX_CORNERS, (fb_avail(FB_ALLOC_NO_HINT) / sizeof(corner_t)));
     corner_t *corners = (corner_t*) fb_alloc(max_corners * sizeof(corner_t), FB_ALLOC_NO_HINT);
 
 	for(y=roi->y+1; y < ysizeB; y++)

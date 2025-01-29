@@ -36,7 +36,7 @@ void imlib_find_lines(list_t *out, image_t *ptr, rectangle_t *roi, unsigned int 
         r_diag_len_div = (r_diag_len + hough_divide - 1) / hough_divide;
         theta_size = 1 + ((180 + hough_divide - 1) / hough_divide) + 1; // left & right padding
         r_size = (r_diag_len_div * 2) + 1; // -r_diag_len to +r_diag_len
-        if ((sizeof(uint32_t) * theta_size * r_size) <= fb_avail()) {
+        if ((sizeof(uint32_t) * theta_size * r_size) <= fb_avail(FB_ALLOC_NO_HINT)) {
             break;
         }
         hough_divide = hough_divide << 1; // powers of 2...
@@ -738,7 +738,7 @@ void imlib_find_circles(list_t *out, image_t *ptr, rectangle_t *roi, unsigned in
             // shrink to fit...
             a_size = 1 + ((w_size + hough_divide - 1) / hough_divide) + 1; // left & right padding
             b_size = 1 + ((h_size + hough_divide - 1) / hough_divide) + 1; // top & bottom padding
-            if ((sizeof(uint32_t) * a_size * b_size) <= fb_avail()) {
+            if ((sizeof(uint32_t) * a_size * b_size) <= fb_avail(FB_ALLOC_NO_HINT)) {
                 break;
             }
             hough_divide = hough_divide << 1; // powers of 2...
