@@ -120,12 +120,25 @@ static const struct reg_op dcmi_init_seq[] = {
 	{.op = WRITE, .args = {.write = {0x111CUL, 0x03000074}} },	 // saphir/bias/bias_req_pu_lv0             Write fields: bias_en|bias_ctl
 	{.op = WRITE, .args = {.write = {0x1120UL, 0x010000A4}} },	 // saphir/bias/bias_sm_pdy_lv0             Write fields: bias_en|bias_ctl
 	{.op = WRITE, .args = {.write = {0x1208UL, 0x00000035}} },	 // saphir/bias/bgen_ctrl                   Write fields: burst_transfer_hv_bank_0|burst_transfer_lv_bank_0
-	{.op = WRITE, .args = {.write = {0x0000UL, 0x00000802}} }	 // saphir/roi_ctrl                         Write fields: roi_td_en
+	{.op = WRITE, .args = {.write = {0x0000UL, 0x00000802}} },	 // saphir/roi_ctrl                         Write fields: roi_td_en
+	{.op = WRITE, .args = {.write = {0x009008, 0x00000184}} },
+	{.op = WRITE, .args = {.write = {0x009008, 0x00010184}} },
+	{.op = WRITE, .args = {.write = {0x000200, 0x00000000}} },
+	{.op = WRITE, .args = {.write = {0x000214, 0x00000440}} },
+	{.op = WRITE, .args = {.write = {0x000214, 0x00000441}} },
+	{.op = WRITE, .args = {.write = {0x000204, 0x00000634}} },
+	{.op = WRITE, .args = {.write = {0x00020C, 0x00000061}} },
+	{.op = WRITE, .args = {.write = {0x000204, 0x00000635}} },
+	{.op = WRITE, .args = {.write = {0x000204, 0x00000637}} },
+	{.op = WRITE, .args = {.write = {0x000210, 0x00000C00}} },
+	{.op = WRITE, .args = {.write = {0x00B00C, 0x00000004}} },
+	{.op = WRITE, .args = {.write = {0x009008, 0x00000304}} },
+	{.op = WRITE, .args = {.write = {0x00004C, 0x00209600}} }
 };
 static const struct reg_op dcmi_start_seq[] = {
 	{.op = WRITE, .args = {.write = {0x8000UL, 0x0001FEA1}} },	 // saphir/cpi/pipeline_control
 	{.op = WRITE, .args = {.write = {0x9028UL, 0x00000000}} },	 // saphir/ro/ro_lp_ctrl                    Write fields: lp_output_disable
-	{.op = WRITE, .args = {.write = {0x9008UL, 0x000000A5}} },	 // saphir/ro/time_base_ctrl                Write fields: time_base_enable
+	{.op = WRITE, .args = {.write = {0x9008UL, 0x00000305}} },	 // saphir/ro/time_base_ctrl                Write fields: time_base_enable
 	{.op = DELAY, .args = {.delay = {1000}} },	 // us
 	{.op = WRITE, .args = {.write = {0x002CUL, 0x0022C724}} },	 // saphir/ro_td_ctrl                       Write fields: ro_td_ack_y_rstn|ro_td_arb_y_rstn|ro_td_addr_y_rstn|ro_td_sendreq_y_rstn
 	{.op = WRITE, .args = {.write = {0x0000UL, 0x00000C02}} },	 // saphir/roi_ctrl                         Write fields: roi_td_en|px_sw_rstn
@@ -136,7 +149,7 @@ static const struct reg_op dcmi_stop_seq[] = {
 	{.op = WRITE, .args = {.write = {0x002CUL, 0x00200624}} },	 // saphir/ro_td_ctrl                       Write fields: ro_td_ack_y_rstn|ro_td_arb_y_rstn|ro_td_addr_y_rstn|ro_td_sendreq_y_rstn
 	{.op = WRITE, .args = {.write = {0x9028UL, 0x00000002}} },	 // saphir/ro/ro_lp_ctrl                    Write fields: lp_output_disable|lp_keep_th
 	{.op = DELAY, .args = {.delay = {1000}} },	 // us
-	{.op = WRITE, .args = {.write = {0x9008UL, 0x000000A4}} },	 // saphir/ro/time_base_ctrl                Write fields: time_base_enable
+	{.op = WRITE, .args = {.write = {0x9008UL, 0x00000304}} },	 // saphir/ro/time_base_ctrl                Write fields: time_base_enable
 	{.op = WRITE, .args = {.write = {0x8000UL, 0x0001FFA2}} },	 // saphir/cpi/pipeline_control             Write fields: enable|drop_nbackpressure|hot_disable_enable
 	{.op = READ, .args = {.read = {0x8004UL, 0x00000002}} },	 // saphir/cpi/pipeline_status              Read fields: busy
 	{.op = DELAY, .args = {.delay = {1000}} }	 // us
