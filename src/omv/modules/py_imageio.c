@@ -323,7 +323,7 @@ static void int_py_imageio_read_chunk(py_imageio_obj_t *stream, image_t *image, 
 }
 #endif
 
-static mp_obj_t py_imageio_read(uint n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+static mp_obj_t py_imageio_read(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
     enum { ARG_copy_to_fb, ARG_loop, ARG_pause };
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_copy_to_fb, MP_ARG_INT,  {.u_bool = true } },
